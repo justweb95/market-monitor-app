@@ -1,7 +1,7 @@
 import { API_URL } from "@/constants/api";
 import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState } from "react-native";
 
 type NotificationItem = {
   id: string;
@@ -15,7 +15,6 @@ export function useNotifications(deviceId: string | null) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const appStateRef = useRef<AppStateStatus>("active");
   const hasInitialFetch = useRef(false);
 
   const fetchPendingNotifications = useCallback(async () => {
@@ -33,7 +32,13 @@ export function useNotifications(deviceId: string | null) {
 
       if (Array.isArray(data)) {
         setNotifications(
-          data.map((n: any) => ({
+          data.map((n: {
+            id: string;
+            title: string;
+            body: string;
+            data?: Record<string, string>;
+            createdAt: string;
+          }) => ({
             id: n.id,
             title: n.title,
             body: n.body,
@@ -86,7 +91,6 @@ export function useNotifications(deviceId: string | null) {
     }
 
     const appStateSubscription = AppState.addEventListener("change", (state) => {
-      appStateRef.current = state;
       console.log("[useNotifications] AppState changed to:", state);
 
       if (state === "active") {
