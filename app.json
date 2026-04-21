@@ -1,32 +1,46 @@
 {
   "expo": {
-    "name": "market-monitor-app",
+    "name": "Market Hunter",
     "slug": "market-monitor-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/market-monitor-test-icon.png",
     "scheme": "marketmonitorapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.paki-dev.marketmonitorapp"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/market-monitor-test-icon.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/market-monitor-test-icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.paki_dev.marketmonitorapp"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "notification": {
+      "vapidPublicKey": "BL3gMHNGHsWSKM-2nVoqNZA3H2MvXNG2L6qwRZQSOPCL3a_sfyvgHfE0vhmduIyDcBlyN9e-LsjssVxO-r-D05U"
+    },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification.png",
+          "color": "#FF0000"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -43,6 +57,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "329f43d7-cbbf-4bad-b025-cd5ddaac833a"
+      }
     }
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "488165299510",
+    "project_id": "market-monitor-594dd",
+    "storage_bucket": "market-monitor-594dd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:488165299510:android:0de08c01423d61f8f38f97",
+        "android_client_info": {
+          "package_name": "com.paki_dev.marketmonitorapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqU8cihr1m27mZqpt5zG_LN0R9zy0ImJ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

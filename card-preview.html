@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notification Card Preview</title>
+    <style>
+      :root {
+        --bg: #090a0c;
+        --paper: #d8f29a;
+        --ink: #15190f;
+        --line: #080a05;
+        --red: #f07b7b;
+        --red-border: #a63f3f;
+        --green: #b8e986;
+        --green-border: #5b8937;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 20% 10%, #1d2430 0%, var(--bg) 50%);
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--ink);
+      }
+
+      .card {
+        width: min(360px, calc(100vw - 32px));
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--paper);
+        padding: 8px;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+      }
+
+      .image {
+        height: 120px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: linear-gradient(135deg, #f1ffd0 0%, #bee87a 100%);
+        margin-bottom: 8px;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 14px;
+        line-height: 16px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .time {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .body {
+        margin: 0;
+        font-size: 12px;
+        line-height: 16px;
+        min-height: 32px;
+        font-weight: 700;
+      }
+
+      .actions {
+        margin-top: 8px;
+        display: flex;
+        gap: 6px;
+      }
+
+      button {
+        flex: 1;
+        min-height: 32px;
+        border-radius: 7px;
+        border: 1px solid;
+        font-size: 11px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .delete {
+        background: var(--red);
+        border-color: var(--red-border);
+        color: var(--ink);
+      }
+
+      .open {
+        background: var(--green);
+        border-color: var(--green-border);
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <article class="card">
+      <div class="image"></div>
+      <div class="top">
+        <h2 class="title">[NOVO] Audi A6 2.0 TDI</h2>
+        <p class="time">18:42</p>
+      </div>
+      <p class="body">9.500 EUR | Novi Beograd</p>
+      <div class="actions">
+        <button class="delete">Obrisi</button>
+        <button class="open">Idi na oglas</button>
+      </div>
+    </article>
+  </body>
+</html>
