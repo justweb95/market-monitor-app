@@ -95,10 +95,10 @@ async function registerForPushNotifications(): Promise<PushRegistrationResult> {
     if (Platform.OS === "android") {
       console.log("[usePushToken] Setting Android notification channel");
       await Notifications.setNotificationChannelAsync("default", {
-        name: "Market Hunter",
+        name: "Lovac na Oglase",
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        enableVibration: true,
+        enableVibrate: true,
         enableLights: true,
         lightColor: "#FF0000",
       });

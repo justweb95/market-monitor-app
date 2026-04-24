@@ -15,6 +15,13 @@ const INVALID_DEVICE_IDS = new Set([
 
 type NotificationMode = "disabled" | "mock" | "remote";
 
+type AccountRegistration = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+};
+
 function getNotificationMode(
   pushSupported: boolean,
   pushReason: string | null,
@@ -48,7 +55,7 @@ export function useDevice() {
   const [notificationMode, setNotificationMode] =
     useState<NotificationMode>("disabled");
 
-  const registerDevice = useCallback(async (): Promise<string> => {
+  const registerDevice = useCallback(async (account?: AccountRegistration): Promise<string> => {
     setLoading(true);
     setError(null);
 
@@ -79,6 +86,14 @@ export function useDevice() {
             : mode === "mock"
               ? `mock:${Platform.OS}`
               : null,
+        ...(account
+          ? {
+              firstName: account.firstName.trim(),
+              lastName: account.lastName.trim(),
+              email: account.email.trim().toLowerCase(),
+              password: account.password,
+            }
+          : {}),
       };
 
       console.log("[useDevice] register payload", payload);
@@ -141,6 +156,13 @@ export function useDevice() {
     return registerDevice();
   }, [deviceId, registerDevice]);
 
+  const linkAccountToDevice = useCallback(
+    async (account: AccountRegistration): Promise<string> => {
+      return registerDevice(account);
+    },
+    [registerDevice],
+  );
+
   const invalidateDeviceRegistration = useCallback(async () => {
     await AsyncStorage.removeItem(DEVICE_ID_KEY);
     setDeviceId(null);
@@ -187,6 +209,7 @@ export function useDevice() {
     pushTokenLoading,
     pushTokenError,
     ensureDeviceRegistered,
+    linkAccountToDevice,
     invalidateDeviceRegistration,
   };
 }

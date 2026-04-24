@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Market Hunter",
+    "name": "Lovac na Oglase",
     "slug": "market-monitor-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/market-monitor-test-icon.png",
+    "icon": "./assets/images/ChatGPT_Image_Apr_21__2026__10_40_33_PM-removebg-preview.png",
     "scheme": "marketmonitorapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,10 +15,10 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/market-monitor-test-icon.png",
+        "backgroundColor": "#0D1117",
+        "foregroundImage": "./assets/images/ChatGPT_Image_Apr_21__2026__10_40_33_PM-removebg-preview.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/market-monitor-test-icon.png"
+        "monochromeImage": "./assets/images/ChatGPT_Image_Apr_21__2026__10_40_33_PM-removebg-preview.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

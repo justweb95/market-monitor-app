@@ -1,16 +1,23 @@
+import { AppHeader } from "@/components/app-header";
 import { API_URL } from "@/constants/api";
+import { useAccountProfile } from "@/hooks/useAccountProfile";
+import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
 import { useDevice } from "@/hooks/useDevice";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Category =
   | "AUTOMOBILI"
@@ -29,6 +36,7 @@ type AlertItem = {
   keywords: string[];
   priceMax: number;
   isActive: boolean;
+  isPreview?: boolean;
 };
 
 type CategoryOption = {
@@ -51,7 +59,10 @@ const CATALOG: Record<Category, string[]> = {
     "Audi A3",
     "Audi A4",
     "Audi A6",
+    "Audi Q5",
+    "Audi Q7",
     "BMW 320",
+    "BMW 520",
     "BMW X5",
     "Golf 6",
     "Golf 7",
@@ -59,13 +70,17 @@ const CATALOG: Record<Category, string[]> = {
     "Skoda Octavia",
     "Skoda Superb",
     "Passat B8",
+    "Passat B7",
     "Mercedes C220",
     "Mercedes E220",
+    "Mercedes GLA 200",
     "Fiat 500L",
     "Peugeot 308",
     "Toyota Corolla",
+    "Toyota Yaris",
     "Renault Clio",
     "Opel Astra",
+    "Opel Insignia",
   ],
   AUTO_DELOVI: [
     "Audi A6 diferencijal",
@@ -76,6 +91,9 @@ const CATALOG: Record<Category, string[]> = {
     "Mercedes E220 kociona klesta",
     "Peugeot 308 alternator",
     "Skoda Octavia trap",
+    "BMW 320 retrovizor",
+    "Golf 6 kompresor klime",
+    "Audi A3 kvacilo",
   ],
   MOTORI: [
     "Yamaha MT-07",
@@ -88,6 +106,8 @@ const CATALOG: Record<Category, string[]> = {
     "Piaggio Beverly 300",
     "Honda Forza 350",
     "Kymco Agility",
+    "Aprilia SR 50",
+    "KTM Duke 390",
   ],
   TELEFONI: [
     "iPhone 13",
@@ -100,6 +120,8 @@ const CATALOG: Record<Category, string[]> = {
     "Xiaomi 14",
     "Google Pixel 8",
     "Google Pixel 9",
+    "Honor Magic 6",
+    "Huawei P60 Pro",
   ],
   RACUNARI: [
     "MacBook Air M1",
@@ -112,6 +134,8 @@ const CATALOG: Record<Category, string[]> = {
     "RTX 3060",
     "RTX 4070",
     "Ryzen 7 5800X",
+    "Ryzen 5 7600",
+    "Intel i7 12700",
   ],
   BICIKLI: [
     "Trek Marlin 7",
@@ -122,6 +146,8 @@ const CATALOG: Record<Category, string[]> = {
     "BTwin Rockrider",
     "Giant Talon",
     "Scott Aspect",
+    "Merida Big Nine",
+    "Cannondale Trail 5",
   ],
   NEKRETNINE: [
     "Garsonjera Novi Beograd",
@@ -130,30 +156,25 @@ const CATALOG: Record<Category, string[]> = {
     "Kuca Surcin",
     "Plac Fruska gora",
     "Lokal centar",
+    "Stan Vracar",
+    "Stan Nis centar",
+    "Kuca Novi Sad",
   ],
 };
 
-const PALETTE = {
-  bg: "#090A0C",
-  slate: "#14161B",
-  text: "#F3F6EE",
-  line: "#080A05",
-  accent: "#A2DC47",
-  paper: "#D8F29A",
-  white: "#F2FFD3",
-  ink: "#15190F",
-  red: "#E14545",
-  orange: "#F6C173",
-  green: "#3AAE55",
-  redSoft: "#F07B7B",
-  redSoftBorder: "#A63F3F",
+const WEB_PREVIEW_ALERT: AlertItem = {
+  id: "preview-web-alert",
+  category: "AUTOMOBILI",
+  keywords: ["Audi", "A4", "2.0", "TDI"],
+  priceMax: 11900,
+  isActive: true,
+  isPreview: true,
 };
 
 function normalizeText(value: string): string {
   return value
     .toLowerCase()
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/c/g, "c")
     .replace(/[^a-z0-9\s-]/g, "")
     .trim();
 }
@@ -173,6 +194,17 @@ function getPlaceholder(category: Category | null): string {
   return "Naziv proizvoda";
 }
 
+function getCategoryIcon(category: Category): React.ComponentProps<typeof Ionicons>["name"] {
+  if (category === "AUTOMOBILI") return "car-sport";
+  if (category === "AUTO_DELOVI") return "build";
+  if (category === "MOTORI") return "flash";
+  if (category === "TELEFONI") return "phone-portrait";
+  if (category === "RACUNARI") return "desktop";
+  if (category === "BICIKLI") return "bicycle";
+  if (category === "NEKRETNINE") return "business";
+  return "radio";
+}
+
 export default function AlertsScreen() {
   const {
     deviceId,
@@ -181,6 +213,7 @@ export default function AlertsScreen() {
     notificationMode,
     ensureDeviceRegistered,
   } = useDevice();
+  const { profile } = useAccountProfile(deviceId);
 
   const [items, setItems] = useState<AlertItem[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
@@ -212,11 +245,15 @@ export default function AlertsScreen() {
   }, [deviceId]);
 
   useEffect(() => {
-    fetchAlerts();
+    void fetchAlerts();
   }, [fetchAlerts]);
 
-  const totalCount = items.length;
-  const maxReached = totalCount >= 3;
+  const isWebPreview = Platform.OS === "web" && items.length === 0;
+  const displayItems = isWebPreview ? [WEB_PREVIEW_ALERT] : items;
+  const totalCount = displayItems.length;
+  const alertLimit = profile?.alertLimit ?? 3;
+  const isPlanLocked = alertLimit === 0;
+  const maxReached = items.length >= alertLimit;
 
   const resetForm = useCallback(() => {
     setStep(0);
@@ -225,45 +262,6 @@ export default function AlertsScreen() {
     setPriceText("");
     setFormError(null);
   }, []);
-
-  const addTestAlerts = useCallback(async () => {
-    try {
-      setFormError(null);
-      const ensuredDeviceId = await ensureDeviceRegistered();
-      const requests = [
-        {
-          deviceId: ensuredDeviceId,
-          category: "AUTOMOBILI",
-          keywords: ["Audi", "A4"],
-          priceMax: 12000,
-          locationText: "",
-        },
-        {
-          deviceId: ensuredDeviceId,
-          category: "TELEFONI",
-          keywords: ["iPhone", "15"],
-          priceMax: 800,
-          locationText: "",
-        },
-      ];
-
-      for (const payload of requests) {
-        const res = await fetch(`${API_URL}/alerts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          throw new Error(`Test alert nije sacuvan (${res.status}): ${await res.text()}`);
-        }
-      }
-
-      await fetchAlerts();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setFormError(message);
-    }
-  }, [ensureDeviceRegistered, fetchAlerts]);
 
   const toggleItem = useCallback(async (id: string) => {
     try {
@@ -280,7 +278,7 @@ export default function AlertsScreen() {
   }, []);
 
   const deleteItem = useCallback((id: string) => {
-    Alert.alert("Brisanje", "Da li sigurno zelis da obrises obavestenje?", [
+    Alert.alert("Brisanje", "Da li sigurno zelis da obrises signal?", [
       { text: "Otkazi", style: "cancel" },
       {
         text: "Obrisi",
@@ -369,7 +367,7 @@ export default function AlertsScreen() {
 
       const newAlert = await res.json();
       if (!newAlert?.id) {
-        throw new Error("Backend je vratio nevalidan odgovor za alert.");
+        throw new Error("Backend je vratio nevalidan odgovor za signal.");
       }
 
       setItems((prev) => [newAlert, ...prev]);
@@ -392,608 +390,783 @@ export default function AlertsScreen() {
 
   if (deviceLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={PALETTE.accent} />
-        <Text style={styles.centerText}>Registrovanje uredjaja...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={NeoTheme.colors.lime} />
+          <Text style={styles.centerText}>Registrovanje uredjaja...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  if (deviceError) {
+  if (deviceError && Platform.OS !== "web") {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorTitle}>Greska pri registraciji</Text>
-        <Text style={styles.errorText}>{deviceError}</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Greska pri registraciji</Text>
+          <Text style={styles.errorText}>{deviceError}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.bgStripeTop} />
-      <View style={styles.bgStripeBottom} />
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
+        {loadingAlerts ? (
+          <ActivityIndicator style={{ marginTop: 32 }} color={NeoTheme.colors.lime} />
+        ) : (
+          <FlatList
+            data={displayItems}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+            ListHeaderComponent={
+              <>
+                <AppHeader
+                  rightLabel="Signali"
+                  rightIcon="pulse"
+                  rightCount={`${profile?.signalCount ?? totalCount}/${alertLimit}`}
+                />
 
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.kicker}>MARKET HUNTER</Text>
-          <Text style={styles.h1}>Obavestenja</Text>
-        </View>
-        <View style={styles.counterBox}>
-          <Text style={[styles.counterValue, maxReached && styles.counterDangerText]}>
-            {totalCount}
-          </Text>
-          <Text style={[styles.counterMax, maxReached && styles.counterDangerText]}>/3</Text>
-        </View>
-      </View>
-
-      {notificationMode === "mock" && (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            Emulator mode: alertovi rade, ali remote push testiraj na fizickom uredjaju.
-          </Text>
-        </View>
-      )}
-
-      {!maxReached && (
-        <View style={styles.formCard}>
-          <View style={styles.formTopRow}>
-            <Text style={styles.formTitle}>Novi alert</Text>
-            {__DEV__ && (
-              <Pressable onPress={addTestAlerts} style={styles.testBtn}>
-                <Text style={styles.testBtnText}>TEST</Text>
-              </Pressable>
-            )}
-          </View>
-
-          <Text style={styles.stepText}>Korak {step + 1}/3</Text>
-
-          {step === 0 && (
-            <View style={styles.categoryGrid}>
-              {CATEGORY_OPTIONS.map((option) => (
-                <Pressable
-                  key={option.value}
-                  onPress={() => {
-                    setCategory(option.value);
-                    if (formError) setFormError(null);
-                  }}
-                  style={({ pressed }) => [
-                    styles.categoryPill,
-                    category === option.value && styles.categoryPillActive,
-                    pressed && styles.pressed,
-                  ]}
+                <LinearGradient
+                  colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0.06)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroCard}
                 >
-                  <Text
-                    style={[
-                      styles.categoryPillText,
-                      category === option.value && styles.categoryPillTextActive,
+                  <View style={styles.heroCopy}>
+                    <Text style={styles.heroEyebrow}>Lovac na Oglase</Text>
+                    <Text style={styles.heroTitle}>Podesi signal za sledeci dobar oglas.</Text>
+                    <Text style={styles.heroBody}>
+                      Aktivni limit je {alertLimit} signala, sa preciznim kljucnim recima i cenom koju aplikacija prati.
+                    </Text>
+                  </View>
+                  <View style={styles.heroMeta}>
+                    <Text style={styles.heroMetaLabel}>Korak</Text>
+                    <Text style={styles.heroMetaValue}>{step + 1}/3</Text>
+                  </View>
+                </LinearGradient>
+
+                {notificationMode === "mock" && (
+                  <View style={styles.infoBox}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={18}
+                      color={NeoTheme.colors.lime}
+                    />
+                    <Text style={styles.infoText}>
+                      Emulator mod: signali rade, ali remote push testiraj na fizickom uredjaju.
+                    </Text>
+                  </View>
+                )}
+
+                {deviceError && Platform.OS === "web" && (
+                  <View style={styles.infoBox}>
+                    <Ionicons
+                      name="warning-outline"
+                      size={18}
+                      color={NeoTheme.colors.lime}
+                    />
+                    <Text style={styles.infoText}>
+                      Web preview mod: prikazan je jedan test signal iako registracija uredjaja nije dostupna.
+                    </Text>
+                  </View>
+                )}
+
+                {isPlanLocked ? (
+                  <View style={styles.maxCard}>
+                    <Text style={styles.maxCardTitle}>FREE plan je zakljucan</Text>
+                    <Text style={styles.maxCardText}>
+                      Unesi kod na Profil ekranu da otkljucas Bronze i dobijes 3 signala.
+                    </Text>
+                  </View>
+                ) : maxReached ? (
+                  <View style={styles.maxCard}>
+                    <Text style={styles.maxCardTitle}>Dosegnut limit od {alertLimit} signala</Text>
+                    <Text style={styles.maxCardText}>
+                      Obrisi ili pauziraj postojeci signal pre dodavanja novog.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.formCard}>
+                    <View style={styles.formTopRow}>
+                      <Text style={styles.formTitle}>Novi signal</Text>
+                    </View>
+
+                    <View style={styles.stepTrack}>
+                      {[0, 1, 2].map((stepIndex) => (
+                        <View
+                          key={stepIndex}
+                          style={[
+                            styles.stepSegment,
+                            stepIndex <= step && styles.stepSegmentActive,
+                          ]}
+                        />
+                      ))}
+                    </View>
+
+                    {step === 0 && (
+                      <View style={styles.categoryGrid}>
+                        {CATEGORY_OPTIONS.map((option) => (
+                          <Pressable
+                            key={option.value}
+                            onPress={() => {
+                              setCategory(option.value);
+                              if (formError) setFormError(null);
+                            }}
+                            style={({ pressed }) => [
+                              styles.categoryPill,
+                              category === option.value && styles.categoryPillActive,
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.categoryPillText,
+                                category === option.value && styles.categoryPillTextActive,
+                              ]}
+                            >
+                              {option.label}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+
+                    {step >= 1 && category && (
+                      <View style={styles.inputBlock}>
+                        <Text style={styles.label}>Kategorija: {getCategoryLabel(category)}</Text>
+                        <TextInput
+                          value={productName}
+                          onChangeText={(value) => {
+                            setProductName(value);
+                            if (formError) setFormError(null);
+                          }}
+                          placeholder={getPlaceholder(category)}
+                          placeholderTextColor={NeoTheme.colors.textDim}
+                          style={styles.input}
+                          returnKeyType="next"
+                          onSubmitEditing={() => {
+                            if (productName.trim()) setStep(2);
+                          }}
+                        />
+
+                        {suggestions.length > 0 && (
+                          <View style={styles.suggestionsWrap}>
+                            {suggestions.map((suggestion) => (
+                              <Pressable
+                                key={suggestion}
+                                onPress={() => {
+                                  setProductName(suggestion);
+                                  if (formError) setFormError(null);
+                                }}
+                                style={({ pressed }) => [
+                                  styles.suggestionItem,
+                                  pressed && styles.pressed,
+                                ]}
+                              >
+                                <Text style={styles.suggestionText}>{suggestion}</Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {step >= 2 && (
+                      <View style={styles.inputBlock}>
+                        <Text style={styles.label}>Maksimalna cena (EUR)</Text>
+                        <TextInput
+                          value={priceText}
+                          onChangeText={(value) => {
+                            setPriceText(value);
+                            if (formError) setFormError(null);
+                          }}
+                          placeholder="Npr. 9500"
+                          placeholderTextColor={NeoTheme.colors.textDim}
+                          style={styles.input}
+                          keyboardType="numeric"
+                          returnKeyType="done"
+                          onSubmitEditing={onPrimary}
+                        />
+                      </View>
+                    )}
+
+                    {formError && <Text style={styles.formError}>{formError}</Text>}
+
+                    <View style={styles.actionsRow}>
+                      <Pressable
+                        onPress={onPrimary}
+                        disabled={primaryDisabled}
+                        style={({ pressed }) => [styles.primaryBtnWrapper, pressed && !primaryDisabled && styles.pressed]}
+                      >
+                        <LinearGradient
+                          colors={
+                            primaryDisabled
+                              ? ["rgba(255,255,255,0.18)", "rgba(255,255,255,0.12)"]
+                              : [NeoTheme.colors.limeSoft, NeoTheme.colors.lime]
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.primaryBtn}
+                        >
+                          <Text style={[styles.primaryBtnText, !primaryDisabled && styles.primaryBtnTextActive]}>{primaryLabel}</Text>
+                        </LinearGradient>
+                      </Pressable>
+
+                      {(step !== 0 || category) && (
+                        <Pressable
+                          onPress={resetForm}
+                          style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.ghostBtnText}>Ponisti</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionTitle}>Aktivni signali</Text>
+                </View>
+              </>
+            }
+            renderItem={({ item }) => (
+              <View style={styles.alertCard}>
+                <View style={[styles.statusBadge, item.isActive ? styles.statusBadgeActive : styles.statusBadgePaused]}>
+                  <Text style={[styles.statusBadgeText, !item.isActive && styles.statusBadgeTextPaused]}>
+                    {item.isActive ? "AKTIVNO" : "PAUZA"}
+                  </Text>
+                </View>
+
+                <View style={styles.alertMainRow}>
+                  <View style={styles.alertAvatar}>
+                    <Ionicons name={getCategoryIcon(item.category)} size={20} color="rgba(215, 242, 13, 1)" />
+                  </View>
+
+                  <View style={styles.alertCopy}>
+                    <Text style={styles.alertCategory}>{getCategoryLabel(item.category)}</Text>
+                    <Text style={styles.alertTitle}>{item.keywords.join(" ")}</Text>
+                    <View style={styles.alertMetaRow}>
+                      <Text style={styles.alertPrice}>
+                        {item.priceMax.toLocaleString("sr-RS")} EUR
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.alertActions}>
+                  <Pressable
+                    onPress={() => {
+                      if (!item.isPreview) {
+                        void toggleItem(item.id);
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      item.isActive ? styles.pauseBtn : styles.enableBtn,
+                      item.isPreview && styles.disabledPreviewAction,
+                      pressed && styles.pressed,
                     ]}
                   >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+                    <Text style={item.isActive ? styles.pauseBtnText : styles.enableBtnText}>
+                      {item.isPreview ? "Demo" : item.isActive ? "Pauziraj" : "Ukljuci"}
+                    </Text>
+                  </Pressable>
 
-          {step >= 1 && category && (
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Kategorija: {getCategoryLabel(category)}</Text>
-              <Text style={styles.label}>Naziv proizvoda / model</Text>
-              <TextInput
-                value={productName}
-                onChangeText={(value) => {
-                  setProductName(value);
-                  if (formError) setFormError(null);
-                }}
-                placeholder={getPlaceholder(category)}
-                placeholderTextColor="#3A4624"
-                style={styles.input}
-                returnKeyType="next"
-                onSubmitEditing={() => {
-                  if (productName.trim()) setStep(2);
-                }}
-              />
-
-              {suggestions.length > 0 && (
-                <View style={styles.suggestionsWrap}>
-                  {suggestions.map((suggestion) => (
-                    <Pressable
-                      key={suggestion}
-                      onPress={() => {
-                        setProductName(suggestion);
-                        if (formError) setFormError(null);
-                      }}
-                      style={({ pressed }) => [
-                        styles.suggestionItem,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text style={styles.suggestionText}>{suggestion}</Text>
-                    </Pressable>
-                  ))}
+                  <Pressable
+                    onPress={() => {
+                      if (!item.isPreview) {
+                        deleteItem(item.id);
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      styles.deleteBtn,
+                      item.isPreview && styles.disabledPreviewAction,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.deleteBtnText}>{item.isPreview ? "Test" : "Obrisi"}</Text>
+                  </Pressable>
                 </View>
-              )}
-            </View>
-          )}
-
-          {step >= 2 && (
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Maksimalna cena (EUR)</Text>
-              <TextInput
-                value={priceText}
-                onChangeText={(value) => {
-                  setPriceText(value);
-                  if (formError) setFormError(null);
-                }}
-                placeholder="Npr. 9500"
-                placeholderTextColor="#3A4624"
-                style={styles.input}
-                keyboardType="numeric"
-                returnKeyType="done"
-                onSubmitEditing={onPrimary}
-              />
-            </View>
-          )}
-
-          {formError && <Text style={styles.formError}>{formError}</Text>}
-
-          <View style={styles.actionsRow}>
-            <Pressable
-              onPress={onPrimary}
-              disabled={primaryDisabled}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                primaryDisabled && styles.primaryBtnDisabled,
-                pressed && !primaryDisabled && styles.pressed,
-              ]}
-            >
-              <Text style={styles.primaryBtnText}>{primaryLabel}</Text>
-            </Pressable>
-
-            {(step !== 0 || category) && (
-              <Pressable
-                onPress={resetForm}
-                style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}
-              >
-                <Text style={styles.ghostBtnText}>Reset</Text>
-              </Pressable>
+              </View>
             )}
-          </View>
-        </View>
-      )}
-
-      {loadingAlerts ? (
-        <ActivityIndicator style={{ marginTop: 28 }} color={PALETTE.accent} />
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.alertCard}>
-              <View style={styles.alertCardTop}>
-                <Text style={styles.alertCategory}>{getCategoryLabel(item.category)}</Text>
-                <Text style={[styles.alertState, !item.isActive && styles.alertStatePaused]}>
-                  {item.isActive ? "AKTIVNO" : "PAUZA"}
-                </Text>
+            ListEmptyComponent={
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyTitle}>Nema signala</Text>
+                <Text style={styles.emptyText}>Dodaj prvi signal i kreni sa pracenjem oglasa.</Text>
               </View>
-
-              <Text style={styles.alertTitle}>{item.keywords.join(" ")}</Text>
-              <Text style={styles.alertPrice}>Max: {item.priceMax.toLocaleString("sr-RS")} EUR</Text>
-
-              <View style={styles.alertActions}>
-                <Pressable
-                  onPress={() => toggleItem(item.id)}
-                  style={({ pressed }) => [
-                    styles.switchBtn,
-                    item.isActive ? styles.switchBtnPause : styles.switchBtnEnable,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.switchBtnText, item.isActive ? styles.switchBtnTextPause : styles.switchBtnTextEnable]}>
-                    {item.isActive ? "Iskljuci" : "Ukljuci"}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => deleteItem(item.id)}
-                  style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
-                >
-                  <Text style={styles.deleteBtnText}>Obrisi</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
-          ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>Nema alerta</Text>
-              <Text style={styles.emptyText}>Dodaj prvi alert i kreni sa pracenjem oglasa.</Text>
-            </View>
-          }
-        />
-      )}
-    </View>
+            }
+          />
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
-const getShadow = (offset = 5) => ({
-  shadowColor: "#000",
-  shadowOffset: { width: offset, height: offset },
-  shadowOpacity: 0.25,
-  shadowRadius: 0,
-  elevation: offset,
-});
-
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: NeoTheme.colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: PALETTE.bg,
-    paddingHorizontal: 14,
-    paddingTop: 26,
-  },
-  bgStripeTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: PALETTE.accent,
-  },
-  bgStripeBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: PALETTE.accent,
+    backgroundColor: NeoTheme.colors.background,
+    paddingHorizontal: 24,
   },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: PALETTE.bg,
     gap: 10,
-    paddingHorizontal: 20,
   },
   centerText: {
-    color: PALETTE.text,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  errorTitle: {
-    color: PALETTE.text,
-    fontSize: 24,
-    fontWeight: "900",
-  },
-  errorText: {
-    color: PALETTE.text,
-    fontSize: 14,
-    fontWeight: "700",
-    textAlign: "center",
+    color: NeoTheme.colors.text,
+    fontSize: 16,
+    fontFamily: NeoTheme.fonts.semiBold,
   },
   headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  kicker: {
-    color: PALETTE.text,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.2,
     marginBottom: 2,
-  },
-  h1: {
-    color: PALETTE.text,
-    fontSize: 42,
-    lineHeight: 44,
-    fontWeight: "900",
-    textTransform: "uppercase",
   },
   counterBox: {
-    backgroundColor: PALETTE.paper,
-    borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     flexDirection: "row",
-    alignItems: "flex-end",
-    ...getShadow(4),
+    alignItems: "baseline",
+    backgroundColor: NeoTheme.colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   counterValue: {
-    color: PALETTE.line,
-    fontSize: 30,
-    lineHeight: 30,
-    fontWeight: "900",
+    color: NeoTheme.colors.text,
+    fontSize: 22,
+    fontFamily: NeoTheme.fonts.bold,
   },
   counterMax: {
-    color: PALETTE.line,
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 2,
-    marginBottom: 2,
+    color: NeoTheme.colors.textMuted,
+    fontSize: 14,
+    fontFamily: NeoTheme.fonts.semiBold,
   },
   counterDangerText: {
-    color: PALETTE.red,
+    color: NeoTheme.colors.danger,
+  },
+  heroCard: {
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.border,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    ...neoShadow,
+  },
+  heroCopy: {
+    flex: 1,
+    paddingRight: 18,
+  },
+  heroEyebrow: {
+    color: NeoTheme.colors.lime,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.semiBold,
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: NeoTheme.colors.text,
+    fontSize: 24,
+    lineHeight: 28,
+    fontFamily: NeoTheme.fonts.bold,
+    marginBottom: 8,
+  },
+  heroBody: {
+    color: NeoTheme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  heroMeta: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    backgroundColor: NeoTheme.colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroMetaLabel: {
+    color: NeoTheme.colors.textMuted,
+    fontSize: 11,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  heroMetaValue: {
+    color: NeoTheme.colors.lime,
+    fontSize: 20,
+    fontFamily: NeoTheme.fonts.bold,
+    marginTop: 4,
   },
   infoBox: {
-    marginBottom: 10,
-    backgroundColor: PALETTE.slate,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
-    borderColor: PALETTE.accent,
-    borderRadius: 9,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    borderColor: NeoTheme.colors.borderStrong,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
   },
   infoText: {
-    color: PALETTE.text,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
+    flex: 1,
+    color: NeoTheme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  maxCard: {
+    borderRadius: 18,
+    padding: 16,
+    backgroundColor: NeoTheme.colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: "rgba(255,103,103,0.34)",
+    marginBottom: 18,
+  },
+  maxCardTitle: {
+    color: NeoTheme.colors.text,
+    fontSize: 16,
+    fontFamily: NeoTheme.fonts.semiBold,
+    marginBottom: 6,
+  },
+  maxCardText: {
+    color: NeoTheme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: NeoTheme.fonts.medium,
   },
   formCard: {
-    backgroundColor: PALETTE.paper,
+    backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 9,
-    padding: 12,
-    marginBottom: 14,
-    ...getShadow(2),
+    borderColor: NeoTheme.colors.border,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    ...neoShadow,
   },
   formTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 14,
   },
   formTitle: {
-    color: PALETTE.ink,
-    fontSize: 22,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    color: NeoTheme.colors.text,
+    fontSize: 24,
+    fontFamily: NeoTheme.fonts.semiBold,
   },
-  stepText: {
-    marginTop: 4,
-    marginBottom: 10,
-    color: PALETTE.ink,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
+  stepTrack: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
   },
-  testBtn: {
-    backgroundColor: PALETTE.accent,
-    borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  stepSegment: {
+    flex: 1,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
-  testBtnText: {
-    color: PALETTE.line,
-    fontSize: 12,
-    fontWeight: "900",
+  stepSegmentActive: {
+    backgroundColor: NeoTheme.colors.lime,
+    ...neoGlow,
   },
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
   categoryPill: {
-    backgroundColor: PALETTE.white,
+    minWidth: "48%",
+    backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: NeoTheme.colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   categoryPillActive: {
-    backgroundColor: PALETTE.accent,
+    backgroundColor: NeoTheme.colors.lime,
+    borderColor: NeoTheme.colors.lime,
   },
   categoryPillText: {
-    color: PALETTE.line,
+    color: NeoTheme.colors.text,
     fontSize: 13,
-    fontWeight: "800",
+    fontFamily: NeoTheme.fonts.semiBold,
   },
   categoryPillTextActive: {
-    fontWeight: "900",
+    color: NeoTheme.colors.black,
   },
   inputBlock: {
-    marginBottom: 10,
+    marginTop: 2,
+    marginBottom: 12,
   },
   label: {
-    color: PALETTE.line,
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 6,
+    color: NeoTheme.colors.textMuted,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: PALETTE.white,
+    minHeight: 52,
     borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 8,
-    color: PALETTE.ink,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontSize: 15,
-    fontWeight: "700",
+    borderColor: NeoTheme.colors.borderStrong,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    color: NeoTheme.colors.text,
+    fontSize: 16,
+    fontFamily: NeoTheme.fonts.medium,
+    paddingHorizontal: 14,
   },
   suggestionsWrap: {
-    marginTop: 6,
-    gap: 6,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
   },
   suggestionItem: {
-    backgroundColor: "rgba(162,220,71,0.22)",
+    backgroundColor: "rgba(215,242,13,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(8,10,5,0.6)",
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
-    opacity: 0.86,
+    borderColor: "rgba(215,242,13,0.18)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   suggestionText: {
-    color: PALETTE.line,
-    fontSize: 13,
-    fontWeight: "700",
+    color: NeoTheme.colors.limeSoft,
+    fontSize: 11,
+    fontFamily: NeoTheme.fonts.medium,
   },
   formError: {
-    color: PALETTE.red,
-    fontSize: 13,
-    fontWeight: "800",
+    color: NeoTheme.colors.danger,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.semiBold,
     marginBottom: 10,
   },
   actionsRow: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 18,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: PALETTE.line,
+    gap: 10,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  primaryBtnWrapper: {
+    flex: 1,
+    flexShrink: 0,
+    flexBasis: "60%",
   },
   primaryBtn: {
-    flex: 1,
-    backgroundColor: PALETTE.line,
-    borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 44,
-  },
-  primaryBtnDisabled: {
-    opacity: 0.35,
   },
   primaryBtnText: {
-    color: PALETTE.white,
-    fontSize: 15,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    color: NeoTheme.colors.text,
+    fontSize: 18,
+    fontFamily: NeoTheme.fonts.bold,
+  },
+  primaryBtnTextActive: {
+    color: NeoTheme.colors.black,
   },
   ghostBtn: {
-    minHeight: 44,
-    paddingHorizontal: 12,
+    minHeight: 52,
+    minWidth: 96,
+    backgroundColor: NeoTheme.colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: PALETTE.slate,
-    borderWidth: 1,
-    borderColor: PALETTE.accent,
-    borderRadius: 8,
   },
   ghostBtnText: {
-    color: PALETTE.text,
+    color: NeoTheme.colors.text,
     fontSize: 14,
-    fontWeight: "900",
+    fontFamily: NeoTheme.fonts.semiBold,
   },
   list: {
-    paddingBottom: 24,
-    gap: 10,
+    paddingBottom: 120,
+  },
+  sectionRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: NeoTheme.colors.lime,
+    fontSize: 16,
+    fontFamily: NeoTheme.fonts.semiBold,
   },
   alertCard: {
-    backgroundColor: PALETTE.paper,
+    backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
-    borderColor: PALETTE.line,
-    borderRadius: 9,
-    padding: 12,
-    ...getShadow(2),
+    borderColor: NeoTheme.colors.border,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    ...neoShadow,
   },
-  alertCardTop: {
+  alertMainRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  alertAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: NeoTheme.radius.xs,
+    backgroundColor: "rgba(215, 242, 13, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(215, 242, 13, 0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertCopy: {
+    flex: 1,
+  },
+  alertCategory: {
+    color: NeoTheme.colors.lime,
+    fontSize: 11,
+    fontFamily: NeoTheme.fonts.semiBold,
+    marginBottom: 4,
+  },
+  alertTitle: {
+    color: NeoTheme.colors.text,
+    fontSize: 18,
+    lineHeight: 20,
+    fontFamily: NeoTheme.fonts.semiBold,
+    marginBottom: 8,
+  },
+  alertMetaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
-  },
-  alertCategory: {
-    color: PALETTE.line,
-    fontSize: 12,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  alertState: {
-    color: PALETTE.line,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  alertStatePaused: {
-    color: PALETTE.red,
-  },
-  alertTitle: {
-    color: PALETTE.line,
-    fontSize: 21,
-    lineHeight: 23,
-    fontWeight: "900",
-    marginBottom: 4,
-    textTransform: "uppercase",
   },
   alertPrice: {
-    color: PALETTE.line,
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 10,
+    color: NeoTheme.colors.textMuted,
+    fontSize: 13,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  statusBadge: {
+    position: "absolute",
+    top: -11,
+    right: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    zIndex: 10,
+  },
+  statusBadgeActive: {
+    backgroundColor: "rgba(0,0,0,0.86)",
+    borderColor: "rgba(57, 255, 20, 1)",
+  },
+  statusBadgePaused: {
+    backgroundColor: "rgba(0,0,0,0.86)",
+    borderColor: "#FFB400",
+  },
+  statusBadgeText: {
+    color: "rgba(57, 255, 20, 1)",
+    fontSize: 10,
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
+  statusBadgeTextPaused: {
+    color: "#FFB400",
   },
   alertActions: {
     flexDirection: "row",
     gap: 8,
+    marginTop: 14,
   },
-  switchBtn: {
+  pauseBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    minHeight: 40,
+    minHeight: 38,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 149, 0, 1)",
+    backgroundColor: "rgba(255, 149, 0, 0.2)",
   },
-  switchBtnPause: {
-    borderColor: "#AB7A2F",
-    backgroundColor: PALETTE.orange,
-  },
-  switchBtnEnable: {
-    borderColor: "#1B5A2F",
-    backgroundColor: PALETTE.green,
-  },
-  switchBtnText: {
+  pauseBtnText: {
+    color: "rgba(255, 149, 0, 1)",
     fontSize: 13,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    fontFamily: NeoTheme.fonts.semiBold,
   },
-  switchBtnTextPause: {
-    color: PALETTE.line,
+  enableBtn: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: NeoTheme.colors.lime,
+    ...neoGlow,
   },
-  switchBtnTextEnable: {
-    color: "#fff",
+  enableBtnText: {
+    color: NeoTheme.colors.black,
+    fontSize: 13,
+    fontFamily: NeoTheme.fonts.bold,
   },
   deleteBtn: {
-    paddingHorizontal: 12,
-    minHeight: 40,
+    minWidth: 92,
+    minHeight: 38,
+    borderRadius: 12,
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: PALETTE.redSoftBorder,
-    borderRadius: 8,
-    backgroundColor: PALETTE.redSoft,
+    borderColor: "rgba(255, 49, 49, 1)",
     alignItems: "center",
     justifyContent: "center",
   },
   deleteBtnText: {
-    color: PALETTE.ink,
+    color: "rgba(255, 49, 49, 1)",
     fontSize: 13,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
+  disabledPreviewAction: {
+    opacity: 0.5,
   },
   emptyBox: {
-    marginTop: 36,
+    marginTop: 12,
     alignItems: "center",
-    paddingHorizontal: 20,
-    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+    borderRadius: 18,
+    backgroundColor: NeoTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.border,
   },
   emptyTitle: {
-    color: PALETTE.text,
-    fontSize: 20,
-    fontWeight: "900",
+    color: NeoTheme.colors.text,
+    fontSize: 18,
+    fontFamily: NeoTheme.fonts.semiBold,
+    marginBottom: 6,
   },
   emptyText: {
-    color: PALETTE.text,
+    color: NeoTheme.colors.textMuted,
     fontSize: 14,
+    fontFamily: NeoTheme.fonts.medium,
+    lineHeight: 18,
     textAlign: "center",
-    fontWeight: "700",
+  },
+  errorTitle: {
+    color: NeoTheme.colors.danger,
+    fontSize: 22,
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
+  errorText: {
+    color: NeoTheme.colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: NeoTheme.fonts.medium,
+    textAlign: "center",
+    marginTop: 8,
   },
   pressed: {
     opacity: 0.84,
