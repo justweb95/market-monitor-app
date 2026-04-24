@@ -36,6 +36,43 @@ type ProfilePatchPayload = {
   password?: string;
 };
 
+type ProfileStore = {
+  profile: AccountProfile | null;
+  loading: boolean;
+  error: string | null;
+  initialized: boolean;
+};
+
+type StoreListener = (deviceId: string) => void;
+
+const profileStores = new Map<string, ProfileStore>();
+const profileListeners = new Set<StoreListener>();
+
+function getStore(deviceId: string): ProfileStore {
+  const existing = profileStores.get(deviceId);
+  if (existing) return existing;
+
+  const created: ProfileStore = {
+    profile: null,
+    loading: false,
+    error: null,
+    initialized: false,
+  };
+  profileStores.set(deviceId, created);
+  return created;
+}
+
+function emit(deviceId: string) {
+  profileListeners.forEach((listener) => listener(deviceId));
+}
+
+function subscribeProfile(listener: StoreListener) {
+  profileListeners.add(listener);
+  return () => {
+    profileListeners.delete(listener);
+  };
+}
+
 export function useAccountProfile(deviceId: string | null) {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,22 +80,27 @@ export function useAccountProfile(deviceId: string | null) {
 
   const refresh = useCallback(async () => {
     if (!deviceId) return null;
-    setLoading(true);
+    const store = getStore(deviceId);
+    store.loading = true;
+    emit(deviceId);
     try {
       const res = await fetch(`${API_URL}/profile/${deviceId}`);
       if (!res.ok) {
         throw new Error(`Profil nije dostupan (${res.status})`);
       }
       const data = (await res.json()) as AccountProfile;
-      setProfile(data);
-      setError(null);
+      store.profile = data;
+      store.error = null;
+      store.initialized = true;
       return data;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Nepoznata greska";
-      setError(message);
+      store.error = message;
+      store.initialized = true;
       return null;
     } finally {
-      setLoading(false);
+      store.loading = false;
+      emit(deviceId);
     }
   }, [deviceId]);
 
@@ -67,6 +109,8 @@ export function useAccountProfile(deviceId: string | null) {
       if (!deviceId) {
         throw new Error("Device nije registrovan");
       }
+
+      const store = getStore(deviceId);
       const res = await fetch(`${API_URL}/profile/${deviceId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -76,8 +120,10 @@ export function useAccountProfile(deviceId: string | null) {
         throw new Error(`Snimanje profila nije uspelo (${res.status}): ${await res.text()}`);
       }
       const data = (await res.json()) as AccountProfile;
-      setProfile(data);
-      setError(null);
+      store.profile = data;
+      store.error = null;
+      store.initialized = true;
+      emit(deviceId);
       return data;
     },
     [deviceId],
@@ -89,6 +135,7 @@ export function useAccountProfile(deviceId: string | null) {
         throw new Error("Device nije registrovan");
       }
 
+      const store = getStore(deviceId);
       const res = await fetch(`${API_URL}/promo/redeem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -100,16 +147,44 @@ export function useAccountProfile(deviceId: string | null) {
       }
 
       const data = (await res.json()) as AccountProfile;
-      setProfile(data);
-      setError(null);
+      store.profile = data;
+      store.error = null;
+      store.initialized = true;
+      emit(deviceId);
       return data;
     },
     [deviceId],
   );
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (!deviceId) {
+      setProfile(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    const syncFromStore = () => {
+      const store = getStore(deviceId);
+      setProfile(store.profile);
+      setError(store.error);
+      setLoading(store.loading);
+    };
+
+    syncFromStore();
+
+    const unsubscribe = subscribeProfile((changedDeviceId) => {
+      if (changedDeviceId !== deviceId) return;
+      syncFromStore();
+    });
+
+    const store = getStore(deviceId);
+    if (!store.initialized && !store.loading) {
+      void refresh();
+    }
+
+    return unsubscribe;
+  }, [deviceId, refresh]);
 
   return {
     profile,

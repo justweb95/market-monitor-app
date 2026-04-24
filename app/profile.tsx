@@ -8,7 +8,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -90,6 +89,10 @@ export default function ProfileScreen() {
   const [code, setCode] = useState("");
   const [saving, setSaving] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanCard["id"]>("DRUGARSKI");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.user) return;
@@ -114,18 +117,21 @@ export default function ProfileScreen() {
   }, [selectedPlan]);
 
   const onSave = async () => {
+    setSaveError(null);
+    setSaveSuccess(null);
+
     if (!deviceId) {
-      Alert.alert("Greska", "Uredjaj jos nije registrovan.");
+      setSaveError("Uredjaj jos nije registrovan.");
       return;
     }
 
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      Alert.alert("Nedostaju podaci", "Ime, prezime i email su obavezni.");
+      setSaveError("Ime, prezime i email su obavezni.");
       return;
     }
 
     if (!profile?.user && !password.trim()) {
-      Alert.alert("Nedostaju podaci", "Za prvo povezivanje naloga potreban je password.");
+      setSaveError("Za prvo povezivanje naloga potreban je password.");
       return;
     }
 
@@ -147,30 +153,33 @@ export default function ProfileScreen() {
         ...(password.trim() ? { password } : {}),
       });
 
-      Alert.alert("Sacuvano", "Profil je uspesno azuriran.");
+      setSaveSuccess("Profil je uspesno azuriran.");
       setPassword("");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      Alert.alert("Greska", message);
+      setSaveError(message);
     } finally {
       setSaving(false);
     }
   };
 
   const onRedeem = async () => {
+    setPromoError(null);
+    setPromoSuccess(null);
+
     if (!code.trim()) {
-      Alert.alert("Kod", "Unesi promo kod.");
+      setPromoError("Unesi promo kod.");
       return;
     }
 
     setSaving(true);
     try {
       await redeemBronzeCode(code.trim().toUpperCase());
-      Alert.alert("Uspeh", "Drugarski plan je aktiviran kodom.");
+      setPromoSuccess("Drugarski plan je aktiviran!");
       setCode("");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      Alert.alert("Kod nije prihvacen", message);
+      setPromoError(message);
     } finally {
       setSaving(false);
     }
@@ -195,7 +204,9 @@ export default function ProfileScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryText}>Plan: {tierText}</Text>
-            <Text style={styles.summaryText}>Signali: {profile?.signalCount ?? 0}/{profile?.alertLimit ?? 0}</Text>
+            <Text style={styles.summaryText}>
+              Signali: {profile?.signalCount ?? 0}/{isDrugarskiActive ? 5 : (profile?.alertLimit ?? 0)}
+            </Text>
           </View>
 
           <View style={styles.card}>
@@ -211,6 +222,8 @@ export default function ProfileScreen() {
             <Pressable onPress={onSave} disabled={saving} style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed, saving && styles.disabled]}>
               <Text style={styles.saveBtnText}>{saving ? "Cuvam..." : "Sacuvaj profil"}</Text>
             </Pressable>
+            {saveError ? <Text style={styles.inlineError}>{saveError}</Text> : null}
+            {saveSuccess ? <Text style={styles.inlineSuccess}>{saveSuccess}</Text> : null}
           </View>
 
           <View style={styles.card}>
@@ -269,6 +282,8 @@ export default function ProfileScreen() {
                   <Pressable onPress={onRedeem} disabled={saving} style={({ pressed }) => [styles.freeBtn, pressed && styles.pressed, saving && styles.disabled]}>
                     <Text style={styles.freeBtnText}>Unesi code</Text>
                   </Pressable>
+                  {promoError ? <Text style={styles.inlineError}>{promoError}</Text> : null}
+                  {promoSuccess ? <Text style={styles.inlineSuccess}>{promoSuccess}</Text> : null}
                 </>
               ) : (
                 <View style={styles.buyBtnBlurred}>
@@ -292,6 +307,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
     paddingHorizontal: 24,
+    paddingTop: 10,
   },
   loaderWrap: {
     flex: 1,
@@ -463,5 +479,19 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.84,
+  },
+  inlineError: {
+    color: NeoTheme.colors.danger,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.regular,
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  inlineSuccess: {
+    color: NeoTheme.colors.lime,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.semiBold,
+    marginTop: 6,
+    paddingHorizontal: 2,
   },
 });

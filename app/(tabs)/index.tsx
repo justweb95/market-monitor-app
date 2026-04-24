@@ -6,7 +6,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   Image,
@@ -106,8 +106,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { deviceId, loading: deviceLoading } = useDevice();
-  const { profile } = useAccountProfile(deviceId);
+  const { profile, refresh: refreshProfile } = useAccountProfile(deviceId);
   const { notifications, dismissNotification, refresh } = useNotifications(deviceId);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshProfile();
+    }, [refreshProfile]),
+  );
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const feed = useMemo(() => {
@@ -173,8 +179,9 @@ export default function HomeScreen() {
   const handleNotificationDismiss = useCallback(
     (notificationId: string) => {
       dismissNotification(notificationId);
+      void removeFavorite(notificationId);
     },
-    [dismissNotification],
+    [dismissNotification, removeFavorite],
   );
 
   const renderListingCard = useCallback(
@@ -378,6 +385,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
     paddingHorizontal: 24,
+    paddingTop: 10,
   },
   centered: {
     flex: 1,

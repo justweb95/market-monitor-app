@@ -1,6 +1,8 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { useDevice } from "@/hooks/useDevice";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useMemo } from "react";
@@ -23,6 +25,8 @@ function formatPriceLabel(priceText?: string): string | null {
 }
 
 export default function FavoritesScreen() {
+  const { deviceId } = useDevice();
+  const { dismissNotification } = useNotifications(deviceId);
   const { favorites, removeFavorite } = useFavorites();
   const { width } = useWindowDimensions();
   const columnCount = width > 380 ? 2 : 1;
@@ -90,6 +94,7 @@ export default function FavoritesScreen() {
                       <Pressable
                         onPress={() => {
                           void removeFavorite(item.id);
+                          void dismissNotification(item.id);
                         }}
                         style={({ pressed }) => [styles.cutButton, styles.cutButtonDanger, pressed && styles.pressed]}
                       >
@@ -131,6 +136,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
     paddingHorizontal: 24,
+    paddingTop: 10,
   },
   list: {
     paddingBottom: 120,

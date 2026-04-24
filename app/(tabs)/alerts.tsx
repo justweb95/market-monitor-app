@@ -4,6 +4,7 @@ import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
 import { useDevice } from "@/hooks/useDevice";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -197,7 +198,7 @@ function getPlaceholder(category: Category | null): string {
 function getCategoryIcon(category: Category): React.ComponentProps<typeof Ionicons>["name"] {
   if (category === "AUTOMOBILI") return "car-sport";
   if (category === "AUTO_DELOVI") return "build";
-  if (category === "MOTORI") return "flash";
+  if (category === "MOTORI") return "speedometer";
   if (category === "TELEFONI") return "phone-portrait";
   if (category === "RACUNARI") return "desktop";
   if (category === "BICIKLI") return "bicycle";
@@ -213,7 +214,13 @@ export default function AlertsScreen() {
     notificationMode,
     ensureDeviceRegistered,
   } = useDevice();
-  const { profile } = useAccountProfile(deviceId);
+  const { profile, refresh: refreshProfile } = useAccountProfile(deviceId);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshProfile();
+    }, [refreshProfile]),
+  );
 
   const [items, setItems] = useState<AlertItem[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
@@ -251,9 +258,15 @@ export default function AlertsScreen() {
   const isWebPreview = Platform.OS === "web" && items.length === 0;
   const displayItems = isWebPreview ? [WEB_PREVIEW_ALERT] : items;
   const totalCount = displayItems.length;
-  const alertLimit = profile?.alertLimit ?? 3;
+  const isDrugarskiActive = profile?.user?.promoCodeUsed === "03081995";
+  const alertLimit =
+    profile?.alertLimit && profile.alertLimit > 0
+      ? profile.alertLimit
+      : isDrugarskiActive
+        ? 5
+        : 0;
   const isPlanLocked = alertLimit === 0;
-  const maxReached = items.length >= alertLimit;
+  const maxReached = !isPlanLocked && items.length >= alertLimit;
 
   const resetForm = useCallback(() => {
     setStep(0);
@@ -478,7 +491,7 @@ export default function AlertsScreen() {
                   <View style={styles.maxCard}>
                     <Text style={styles.maxCardTitle}>FREE plan je zakljucan</Text>
                     <Text style={styles.maxCardText}>
-                      Unesi kod na Profil ekranu da otkljucas Bronze i dobijes 3 signala.
+                      Nadogradi plan na Profil ekranu da otkljucas signale.
                     </Text>
                   </View>
                 ) : maxReached ? (
@@ -713,6 +726,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
     paddingHorizontal: 24,
+    paddingTop: 10,
   },
   centered: {
     flex: 1,

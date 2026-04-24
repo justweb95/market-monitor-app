@@ -1,7 +1,6 @@
 import { HapticTab } from "@/components/haptic-tab";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Tabs } from "expo-router";
 import React from "react";
 import { StyleSheet, View } from "react-native";
@@ -32,14 +31,6 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         sceneStyle: { backgroundColor: NeoTheme.colors.background },
         tabBarStyle: styles.tabBar,
-        tabBarBackground: () => (
-          <LinearGradient
-            colors={["rgba(255,255,255,0.16)", "rgba(255,255,255,0.08)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabBarBackground}
-          />
-        ),
         tabBarActiveTintColor: NeoTheme.colors.lime,
         tabBarInactiveTintColor: "rgba(255,255,255,0.78)",
       }}
@@ -80,8 +71,8 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: "absolute",
-    left: 26,
-    right: 26,
+    left: 10,
+    right: 10,
     bottom: 20,
     height: 52,
     paddingTop: 8,
@@ -90,12 +81,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
     borderRadius: 22,
-    backgroundColor: "transparent",
+    backgroundColor: NeoTheme.colors.surface,
+    overflow: "hidden",
     ...neoShadow,
-  },
-  tabBarBackground: {
-    flex: 1,
-    borderRadius: 22,
   },
   iconWrap: {
     alignItems: "center",

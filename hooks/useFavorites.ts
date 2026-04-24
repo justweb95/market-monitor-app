@@ -14,60 +14,78 @@ export type FavoriteListing = {
   priceText?: string;
 };
 
+// --- Singleton store shared across all useFavorites instances ---
+type Listener = (items: FavoriteListing[]) => void;
+let _favorites: FavoriteListing[] = [];
+let _loaded = false;
+const _listeners = new Set<Listener>();
+
+function _notify(items: FavoriteListing[]) {
+  _favorites = items;
+  _listeners.forEach((fn) => fn(items));
+}
+
+async function _persist(items: FavoriteListing[]) {
+  _notify(items);
+  await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(items));
+}
+
+async function _hydrate() {
+  try {
+    const stored = await AsyncStorage.getItem(FAVORITES_KEY);
+    const parsed = stored ? (JSON.parse(stored) as FavoriteListing[]) : [];
+    _notify(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    _notify([]);
+  } finally {
+    _loaded = true;
+  }
+}
+
+// Load once on module init
+void _hydrate();
+// ----------------------------------------------------------------
+
 export function useFavorites() {
-  const [favorites, setFavorites] = useState<FavoriteListing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState<FavoriteListing[]>(_favorites);
+  const [loading, setLoading] = useState(!_loaded);
 
-  const persist = useCallback(async (items: FavoriteListing[]) => {
-    setFavorites(items);
-    await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(items));
-  }, []);
-
-  const hydrate = useCallback(async () => {
-    try {
-      const stored = await AsyncStorage.getItem(FAVORITES_KEY);
-      if (!stored) {
-        setFavorites([]);
-        return;
-      }
-      const parsed = JSON.parse(stored) as FavoriteListing[];
-      if (Array.isArray(parsed)) {
-        setFavorites(parsed);
-      }
-    } catch {
-      setFavorites([]);
-    } finally {
+  useEffect(() => {
+    const listener: Listener = (items) => {
+      setFavorites(items);
       setLoading(false);
-    }
+    };
+    _listeners.add(listener);
+    // Sync immediately in case store already loaded
+    setFavorites(_favorites);
+    if (_loaded) setLoading(false);
+    return () => {
+      _listeners.delete(listener);
+    };
   }, []);
 
   const isFavorite = useCallback(
-    (id: string) => favorites.some((item) => item.id === id),
+    (id: string) => _favorites.some((item) => item.id === id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [favorites],
   );
 
-  const toggleFavorite = useCallback(
-    async (item: FavoriteListing) => {
-      const exists = favorites.some((entry) => entry.id === item.id);
-      if (exists) {
-        await persist(favorites.filter((entry) => entry.id !== item.id));
-      } else {
-        await persist([item, ...favorites]);
-      }
-    },
-    [favorites, persist],
-  );
+  const toggleFavorite = useCallback(async (item: FavoriteListing) => {
+    const exists = _favorites.some((entry) => entry.id === item.id);
+    await _persist(
+      exists
+        ? _favorites.filter((entry) => entry.id !== item.id)
+        : [item, ..._favorites],
+    );
+  }, []);
 
-  const removeFavorite = useCallback(
-    async (id: string) => {
-      await persist(favorites.filter((entry) => entry.id !== id));
-    },
-    [favorites, persist],
-  );
+  const removeFavorite = useCallback(async (id: string) => {
+    await _persist(_favorites.filter((entry) => entry.id !== id));
+  }, []);
 
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+  const refresh = useCallback(async () => {
+    await _hydrate();
+  }, []);
 
   return {
     favorites,
@@ -75,6 +93,6 @@ export function useFavorites() {
     isFavorite,
     toggleFavorite,
     removeFavorite,
-    refresh: hydrate,
+    refresh,
   };
 }
