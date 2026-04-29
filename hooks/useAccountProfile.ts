@@ -27,6 +27,19 @@ export type AccountProfile = {
   signalCount: number;
   pricingPlans: PricingPlan[];
   freeBronzeCode: string;
+  // Trial + subscription
+  trialActive: boolean;
+  trialDaysLeft: number;
+  trialExpiredAt: string | null;
+  isLocked: boolean;
+  subscription: {
+    tier: PlanTier;
+    status: "TRIAL" | "ACTIVE" | "PAUSED" | "EXPIRED" | "CANCELLED";
+    productId: string | null;
+    startedAt: string;
+    renewsAt: string | null;
+    pausedAt: string | null;
+  } | null;
 };
 
 type ProfilePatchPayload = {

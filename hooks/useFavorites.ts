@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const FAVORITES_KEY = "market_monitor_favorites_v1";
 
@@ -64,11 +64,9 @@ export function useFavorites() {
     };
   }, []);
 
-  const isFavorite = useCallback(
-    (id: string) => _favorites.some((item) => item.id === id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [favorites],
-  );
+  const favoriteIds = useMemo(() => new Set(favorites.map((item) => item.id)), [favorites]);
+
+  const isFavorite = useCallback((id: string) => favoriteIds.has(id), [favoriteIds]);
 
   const toggleFavorite = useCallback(async (item: FavoriteListing) => {
     const exists = _favorites.some((entry) => entry.id === item.id);

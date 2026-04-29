@@ -114,7 +114,7 @@ export default function HomeScreen() {
       void refreshProfile();
     }, [refreshProfile]),
   );
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isFavorite, toggleFavorite, removeFavorite } = useFavorites();
 
   const feed = useMemo(() => {
     return notifications.map<NotifItem>((item) => {

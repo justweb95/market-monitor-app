@@ -9,21 +9,27 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://quietistic-unsettlingly-mavis.ngrok-free.dev",
-        "EXPO_PUBLIC_PUSH_MODE": "auto"
+        "EXPO_PUBLIC_PUSH_MODE": "auto",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_REPLACE_WITH_RC_IOS_KEY",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_REPLACE_WITH_RC_ANDROID_KEY"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://quietistic-unsettlingly-mavis.ngrok-free.dev",
-        "EXPO_PUBLIC_PUSH_MODE": "auto"
+        "EXPO_PUBLIC_PUSH_MODE": "auto",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_REPLACE_WITH_RC_IOS_KEY",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_REPLACE_WITH_RC_ANDROID_KEY"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://quietistic-unsettlingly-mavis.ngrok-free.dev",
-        "EXPO_PUBLIC_PUSH_MODE": "auto"
+        "EXPO_PUBLIC_PUSH_MODE": "auto",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_REPLACE_WITH_RC_IOS_KEY",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_REPLACE_WITH_RC_ANDROID_KEY"
       }
     }
   },

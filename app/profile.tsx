@@ -3,11 +3,13 @@ import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import type { PlanTier } from "@/hooks/useAccountProfile";
 import { useDevice } from "@/hooks/useDevice";
+import { useSubscription } from "@/hooks/useSubscription";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -80,7 +82,8 @@ const PLANS: PlanCard[] = [
 export default function ProfileScreen() {
   const router = useRouter();
   const { deviceId, linkAccountToDevice, loading: deviceLoading } = useDevice();
-  const { profile, loading, updateProfile, redeemBronzeCode } = useAccountProfile(deviceId);
+  const { profile, loading, updateProfile, redeemBronzeCode, refresh: refreshProfile } = useAccountProfile(deviceId);
+  const { offerings, purchasing, purchasePackage, restorePurchases, getManagementURL } = useSubscription(profile?.user?.id);
 
   const [firstName, setFirstName] = useState(profile?.user?.firstName ?? "");
   const [lastName, setLastName] = useState(profile?.user?.lastName ?? "");
@@ -93,6 +96,7 @@ export default function ProfileScreen() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
+  const [managementUrl] = useState<string | null>(getManagementURL());
 
   useEffect(() => {
     if (!profile?.user) return;
@@ -207,7 +211,27 @@ export default function ProfileScreen() {
             <Text style={styles.summaryText}>
               Signali: {profile?.signalCount ?? 0}/{isDrugarskiActive ? 5 : (profile?.alertLimit ?? 0)}
             </Text>
+            {profile?.trialActive && (
+              <Text style={styles.summaryTextTrial}>
+                Trial: {profile.trialDaysLeft} dana
+              </Text>
+            )}
           </View>
+          {!profile?.trialActive && profile?.subscription?.renewsAt && (
+            <View style={styles.subscriptionInfo}>
+              <Text style={styles.subscriptionText}>
+                Pretplata aktivna do: {new Date(profile.subscription.renewsAt).toLocaleDateString("sr-RS")}
+              </Text>
+              {managementUrl && (
+                <Pressable
+                  onPress={() => Linking.openURL(managementUrl)}
+                  style={styles.pauseBtn}
+                >
+                  <Text style={styles.pauseBtnText}>Pauziraj pretplatu</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Korisnicki podaci</Text>
@@ -286,12 +310,44 @@ export default function ProfileScreen() {
                   {promoSuccess ? <Text style={styles.inlineSuccess}>{promoSuccess}</Text> : null}
                 </>
               ) : (
-                <View style={styles.buyBtnBlurred}>
-                  <Text style={styles.buyBtnBlurredText}>Kupi {activePlan.priceEur ? `(${activePlan.priceEur} €)` : ""}</Text>
-                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.buyBtn, pressed && styles.pressed, purchasing && styles.disabled]}
+                  onPress={async () => {
+                    const pkg = offerings?.availablePackages.find((p) => {
+                      const id = p.identifier;
+                      return (
+                        (activePlan.id === "BRONZE" && id.includes("bronze")) ||
+                        (activePlan.id === "SILVER" && id.includes("silver")) ||
+                        (activePlan.id === "GOLD" && id.includes("gold"))
+                      );
+                    });
+                    if (!pkg) return;
+                    const ok = await purchasePackage(pkg);
+                    if (ok) refreshProfile();
+                  }}
+                  disabled={purchasing || !offerings}
+                >
+                  {purchasing ? (
+                    <ActivityIndicator color={NeoTheme.colors.black} />
+                  ) : (
+                    <Text style={styles.buyBtnText}>Kupi {activePlan.priceEur ? `(${activePlan.priceEur} €)` : ""}</Text>
+                  )}
+                </Pressable>
               )}
             </View>
           </View>
+
+          <Pressable
+            onPress={restorePurchases}
+            style={({ pressed }) => [styles.restoreBtn, pressed && styles.pressed]}
+            disabled={purchasing}
+          >
+            {purchasing ? (
+              <ActivityIndicator color={NeoTheme.colors.lime} />
+            ) : (
+              <Text style={styles.restoreBtnText}>Vrati kupovinu</Text>
+            )}
+          </Pressable>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -332,6 +388,38 @@ const styles = StyleSheet.create({
     color: NeoTheme.colors.lime,
     fontSize: 12,
     fontFamily: NeoTheme.fonts.semiBold,
+  },
+  summaryTextTrial: {
+    color: NeoTheme.colors.lime,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.bold,
+  },
+  subscriptionInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    padding: 10,
+    backgroundColor: "rgba(215, 242, 13, 0.08)",
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  subscriptionText: {
+    flex: 1,
+    color: NeoTheme.colors.lime,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  pauseBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: NeoTheme.colors.lime,
+  },
+  pauseBtnText: {
+    color: NeoTheme.colors.black,
+    fontFamily: NeoTheme.fonts.semiBold,
+    fontSize: 11,
   },
   card: {
     borderRadius: 16,
@@ -457,6 +545,34 @@ const styles = StyleSheet.create({
   freeBtnText: {
     color: "rgba(215, 242, 13, 1)",
     fontFamily: NeoTheme.fonts.semiBold,
+    fontSize: 13,
+  },
+  buyBtn: {
+    minHeight: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: NeoTheme.colors.lime,
+  },
+  buyBtnText: {
+    color: NeoTheme.colors.black,
+    fontFamily: NeoTheme.fonts.semiBold,
+    fontSize: 13,
+  },
+  restoreBtn: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    minHeight: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(215, 242, 13, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(215, 242, 13, 0.4)",
+  },
+  restoreBtnText: {
+    color: NeoTheme.colors.lime,
+    fontFamily: NeoTheme.fonts.medium,
     fontSize: 13,
   },
   buyBtnBlurred: {

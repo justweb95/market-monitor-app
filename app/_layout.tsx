@@ -4,7 +4,11 @@ import {
   ChakraPetch_600SemiBold,
   ChakraPetch_700Bold,
 } from "@expo-google-fonts/chakra-petch";
+import { PaywallGate } from "@/components/paywall-gate";
 import { NeoTheme } from "@/constants/neo-theme";
+import { useAccountProfile } from "@/hooks/useAccountProfile";
+import { useDevice } from "@/hooks/useDevice";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import {
@@ -14,7 +18,8 @@ import {
 import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import type Purchases from "react-native-purchases";
 import "react-native-reanimated";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -54,6 +59,12 @@ export default function RootLayout() {
     ChakraPetch_600SemiBold,
     ChakraPetch_700Bold,
   });
+
+  // Device and profile for paywall gate
+  const { deviceId } = useDevice();
+  const { profile, refresh: refreshProfile } = useAccountProfile(deviceId);
+  const { purchasing, purchasePackage, restorePurchases, getManagementURL } = useSubscription(profile?.user?.id);
+  const [managementUrl] = useState<string | null>(getManagementURL());
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -96,16 +107,75 @@ export default function RootLayout() {
     return null;
   }
 
+  const isLocked = profile?.isLocked ?? false;
+  const trialDaysLeft = profile?.trialDaysLeft ?? 7;
+
+  const planOptions: {
+    tier: "BRONZE" | "SILVER" | "GOLD";
+    label: string;
+    price: string;
+    alerts: number;
+    pkg: Purchases.PurchasesPackage | null;
+  }[] = [
+    {
+      tier: "BRONZE",
+      label: "Bronze",
+      price: "10 €",
+      alerts: 3,
+      pkg: profile?.pricingPlans
+        ? null // Would fetch from offerings in PaywallGate
+        : null,
+    },
+    {
+      tier: "SILVER",
+      label: "Silver",
+      price: "15 €",
+      alerts: 6,
+      pkg: null,
+    },
+    {
+      tier: "GOLD",
+      label: "Gold",
+      price: "20 €",
+      alerts: 10,
+      pkg: null,
+    },
+  ];
+
+  async function handlePurchase(pkg: Purchases.PurchasesPackage): Promise<boolean> {
+    const ok = await purchasePackage(pkg);
+    if (ok) refreshProfile();
+    return ok;
+  }
+
+  async function handleRedeemCode(code: string): Promise<void> {
+    // This is called from PaywallGate, would link to profile redemption
+    // For now, we rely on the profile screen to handle this
+    throw new Error("Promo kod se aktivira na profilu");
+  }
+
   return (
     <ThemeProvider value={appTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: "modal", title: "Modal" }}
-        />
-      </Stack>
+      <PaywallGate
+        isLocked={isLocked}
+        trialDaysLeft={trialDaysLeft}
+        planOptions={planOptions}
+        purchasing={purchasing}
+        managementURL={managementUrl}
+        onPurchase={handlePurchase}
+        onRestorePurchases={restorePurchases}
+        onRedeemCode={handleRedeemCode}
+        onRefreshProfile={refreshProfile}
+      >
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="modal"
+            options={{ presentation: "modal", title: "Modal" }}
+          />
+        </Stack>
+      </PaywallGate>
       <StatusBar style="light" />
     </ThemeProvider>
   );

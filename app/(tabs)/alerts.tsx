@@ -24,10 +24,13 @@ type Category =
   | "AUTOMOBILI"
   | "AUTO_DELOVI"
   | "MOTORI"
+  | "MOTO_DELOVI"
+  | "MOTO_OPREMA"
   | "TELEFONI"
   | "RACUNARI"
   | "BICIKLI"
-  | "NEKRETNINE";
+  | "NEKRETNINE"
+  | "SVE";
 
 type Step = 0 | 1 | 2;
 
@@ -35,7 +38,13 @@ type AlertItem = {
   id: string;
   category: Category;
   keywords: string[];
-  priceMax: number;
+  priceMax: number | null;
+  locationText?: string;
+  propertyType?: "STAN" | "LOKAL" | "PARCELA" | null;
+  yearFrom?: number | null;
+  yearTo?: number | null;
+  kmFrom?: number | null;
+  kmTo?: number | null;
   isActive: boolean;
   isPreview?: boolean;
 };
@@ -43,16 +52,43 @@ type AlertItem = {
 type CategoryOption = {
   value: Category;
   label: string;
+  beta?: boolean;
 };
+
+type PropertyType = "STAN" | "LOKAL" | "PARCELA";
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
   { value: "AUTOMOBILI", label: "Automobili" },
   { value: "AUTO_DELOVI", label: "Auto delovi" },
   { value: "MOTORI", label: "Motori" },
+  { value: "MOTO_DELOVI", label: "Moto delovi", beta: true },
+  { value: "MOTO_OPREMA", label: "Moto oprema", beta: true },
   { value: "TELEFONI", label: "Telefoni" },
   { value: "RACUNARI", label: "Racunari" },
   { value: "BICIKLI", label: "Bicikli" },
   { value: "NEKRETNINE", label: "Nekretnine" },
+  { value: "SVE", label: "Sve kategorije" },
+];
+
+const LOCATION_OPTIONS = [
+  "Svi regioni",
+  "Beograd",
+  "Novi Sad",
+  "Nis",
+  "Kragujevac",
+  "Subotica",
+  "Novi Pazar",
+  "Cacak",
+  "Kraljevo",
+  "Zrenjanin",
+  "Pancevo",
+  "Smederevo",
+];
+
+const PROPERTY_OPTIONS: Array<{ value: PropertyType; label: string }> = [
+  { value: "STAN", label: "Stan" },
+  { value: "LOKAL", label: "Lokal" },
+  { value: "PARCELA", label: "Parcela / Zemljiste" },
 ];
 
 const CATALOG: Record<Category, string[]> = {
@@ -110,6 +146,20 @@ const CATALOG: Record<Category, string[]> = {
     "Aprilia SR 50",
     "KTM Duke 390",
   ],
+  MOTO_DELOVI: [
+    "Yamaha R6 plastike",
+    "Honda CBR lanac i lancanici",
+    "Kawasaki Z650 auspuh",
+    "Skuter variomat",
+    "Moto disk plocice",
+  ],
+  MOTO_OPREMA: [
+    "Moto kaciga AGV",
+    "Moto jakna Dainese",
+    "Moto rukavice",
+    "Moto cizme Alpinestars",
+    "Kisno odelo za motor",
+  ],
   TELEFONI: [
     "iPhone 13",
     "iPhone 14",
@@ -161,6 +211,7 @@ const CATALOG: Record<Category, string[]> = {
     "Stan Nis centar",
     "Kuca Novi Sad",
   ],
+  SVE: ["Audi", "iPhone", "Stan", "MacBook", "Yamaha", "Bicikl"],
 };
 
 const WEB_PREVIEW_ALERT: AlertItem = {
@@ -168,6 +219,7 @@ const WEB_PREVIEW_ALERT: AlertItem = {
   category: "AUTOMOBILI",
   keywords: ["Audi", "A4", "2.0", "TDI"],
   priceMax: 11900,
+  locationText: "Beograd",
   isActive: true,
   isPreview: true,
 };
@@ -188,10 +240,13 @@ function getPlaceholder(category: Category | null): string {
   if (category === "AUTOMOBILI") return "Npr. Audi A4";
   if (category === "AUTO_DELOVI") return "Npr. Audi A6 diferencijal";
   if (category === "MOTORI") return "Npr. Yamaha MT-07";
+  if (category === "MOTO_DELOVI") return "Npr. R6 plastike";
+  if (category === "MOTO_OPREMA") return "Npr. Moto kaciga";
   if (category === "TELEFONI") return "Npr. iPhone 15 Pro";
   if (category === "RACUNARI") return "Npr. MacBook Air M2";
   if (category === "BICIKLI") return "Npr. Trek Marlin 7";
   if (category === "NEKRETNINE") return "Npr. Stan Zvezdara";
+  if (category === "SVE") return "Npr. Dyson ili Lego";
   return "Naziv proizvoda";
 }
 
@@ -199,10 +254,13 @@ function getCategoryIcon(category: Category): React.ComponentProps<typeof Ionico
   if (category === "AUTOMOBILI") return "car-sport";
   if (category === "AUTO_DELOVI") return "build";
   if (category === "MOTORI") return "speedometer";
+  if (category === "MOTO_DELOVI") return "construct";
+  if (category === "MOTO_OPREMA") return "shield-checkmark";
   if (category === "TELEFONI") return "phone-portrait";
   if (category === "RACUNARI") return "desktop";
   if (category === "BICIKLI") return "bicycle";
   if (category === "NEKRETNINE") return "business";
+  if (category === "SVE") return "apps";
   return "radio";
 }
 
@@ -230,6 +288,13 @@ export default function AlertsScreen() {
   const [category, setCategory] = useState<Category | null>(null);
   const [productName, setProductName] = useState("");
   const [priceText, setPriceText] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [locationText, setLocationText] = useState(LOCATION_OPTIONS[0] ?? "Svi regioni");
+  const [yearFromText, setYearFromText] = useState("");
+  const [yearToText, setYearToText] = useState("");
+  const [kmFromText, setKmFromText] = useState("");
+  const [kmToText, setKmToText] = useState("");
+  const [propertyType, setPropertyType] = useState<PropertyType | null>(null);
 
   const fetchAlerts = useCallback(async () => {
     if (!deviceId) return;
@@ -273,6 +338,13 @@ export default function AlertsScreen() {
     setCategory(null);
     setProductName("");
     setPriceText("");
+    setLocationText(LOCATION_OPTIONS[0] ?? "Svi regioni");
+    setShowAdvanced(false);
+    setYearFromText("");
+    setYearToText("");
+    setKmFromText("");
+    setKmToText("");
+    setPropertyType(null);
     setFormError(null);
   }, []);
 
@@ -328,16 +400,39 @@ export default function AlertsScreen() {
   }, [category, productName]);
 
   const isNameOk = productName.trim().length > 0;
+  const isAllCategory = category === "SVE";
+  const isPropertyRequired = category === "NEKRETNINE";
+  const isPropertyOk = !isPropertyRequired || !!propertyType;
   const priceNum = Number(priceText.replace(",", "."));
-  const isPriceOk = Number.isFinite(priceNum) && priceNum > 0;
+  const isPriceOk = isAllCategory || (Number.isFinite(priceNum) && priceNum > 0);
 
-  const primaryLabel = savingAlert ? "Cuvam..." : step === 2 ? "Sacuvaj" : "Sledece";
+  const yearFromNum = yearFromText.trim() ? Number(yearFromText) : null;
+  const yearToNum = yearToText.trim() ? Number(yearToText) : null;
+  const kmFromNum = kmFromText.trim() ? Number(kmFromText) : null;
+  const kmToNum = kmToText.trim() ? Number(kmToText) : null;
+
+  const isYearRangeOk =
+    (yearFromNum === null || Number.isFinite(yearFromNum)) &&
+    (yearToNum === null || Number.isFinite(yearToNum)) &&
+    (yearFromNum === null || yearToNum === null || yearFromNum <= yearToNum);
+
+  const isKmRangeOk =
+    (kmFromNum === null || Number.isFinite(kmFromNum)) &&
+    (kmToNum === null || Number.isFinite(kmToNum)) &&
+    (kmFromNum === null || kmToNum === null || kmFromNum <= kmToNum);
+
+  const primaryLabel =
+    savingAlert
+      ? "Cuvam..."
+      : step === 2 || (step === 1 && isAllCategory)
+        ? "Sacuvaj"
+        : "Sledece";
 
   const primaryDisabled =
     savingAlert ||
     (step === 0 && !category) ||
     (step === 1 && !isNameOk) ||
-    (step === 2 && !isPriceOk);
+    (step === 2 && (!isPriceOk || !isPropertyOk || !isYearRangeOk || !isKmRangeOk));
 
   const onPrimary = useCallback(async () => {
     if (primaryDisabled) return;
@@ -346,6 +441,22 @@ export default function AlertsScreen() {
       return;
     }
     if (step === 1) {
+      setStep(2);
+      return;
+    }
+
+    if (!isYearRangeOk) {
+      setFormError("Raspon godista nije validan.");
+      return;
+    }
+
+    if (!isKmRangeOk) {
+      setFormError("Raspon kilometraze nije validan.");
+      return;
+    }
+
+    if (!isPropertyOk) {
+      setFormError("Za nekretnine je obavezno izabrati tip (stan/lokal/parcela).");
       setStep(2);
       return;
     }
@@ -364,8 +475,13 @@ export default function AlertsScreen() {
         deviceId: ensuredDeviceId,
         category,
         keywords: productName.trim().split(/\s+/).filter(Boolean),
-        priceMax: Math.round(priceNum),
-        locationText: "",
+        priceMax: isAllCategory ? null : Math.round(priceNum),
+        locationText: locationText === "Svi regioni" ? "" : locationText,
+        propertyType: category === "NEKRETNINE" ? propertyType : null,
+        yearFrom: yearFromNum,
+        yearTo: yearToNum,
+        kmFrom: kmFromNum,
+        kmTo: kmToNum,
       };
 
       const res = await fetch(`${API_URL}/alerts`, {
@@ -394,11 +510,21 @@ export default function AlertsScreen() {
   }, [
     category,
     ensureDeviceRegistered,
+    isAllCategory,
+    isKmRangeOk,
+    isPropertyOk,
+    isYearRangeOk,
+    kmFromNum,
+    kmToNum,
+    locationText,
+    propertyType,
     priceNum,
     primaryDisabled,
     productName,
     resetForm,
     step,
+    yearFromNum,
+    yearToNum,
   ]);
 
   if (deviceLoading) {
@@ -534,14 +660,21 @@ export default function AlertsScreen() {
                               pressed && styles.pressed,
                             ]}
                           >
-                            <Text
-                              style={[
-                                styles.categoryPillText,
-                                category === option.value && styles.categoryPillTextActive,
-                              ]}
-                            >
-                              {option.label}
-                            </Text>
+                            <View style={styles.categoryPillRow}>
+                              <Text
+                                style={[
+                                  styles.categoryPillText,
+                                  category === option.value && styles.categoryPillTextActive,
+                                ]}
+                              >
+                                {option.label}
+                              </Text>
+                              {option.beta && (
+                                <View style={styles.betaBadge}>
+                                  <Text style={styles.betaBadgeText}>BETA</Text>
+                                </View>
+                              )}
+                            </View>
                           </Pressable>
                         ))}
                       </View>
@@ -550,6 +683,22 @@ export default function AlertsScreen() {
                     {step >= 1 && category && (
                       <View style={styles.inputBlock}>
                         <Text style={styles.label}>Kategorija: {getCategoryLabel(category)}</Text>
+                        {category === "SVE" && (
+                          <View style={styles.infoBoxInline}>
+                            <Ionicons name="warning-outline" size={16} color={NeoTheme.colors.lime} />
+                            <Text style={styles.infoTextInline}>
+                              Kategorija SVE pretrazuje samo po kljucnoj reci i moze vratiti veliki broj oglasa.
+                            </Text>
+                          </View>
+                        )}
+                        {(category === "MOTO_DELOVI" || category === "MOTO_OPREMA") && (
+                          <View style={styles.infoBoxInline}>
+                            <Ionicons name="flask-outline" size={16} color={NeoTheme.colors.lime} />
+                            <Text style={styles.infoTextInline}>
+                              BETA: moto delovi/oprema se trenutno uzimaju sa pretrage, ne striktno poslednja 24h.
+                            </Text>
+                          </View>
+                        )}
                         <TextInput
                           value={productName}
                           onChangeText={(value) => {
@@ -584,10 +733,115 @@ export default function AlertsScreen() {
                             ))}
                           </View>
                         )}
+
+                        {category === "NEKRETNINE" && (
+                          <View style={styles.inlinePickerWrap}>
+                            <Text style={styles.label}>Tip nekretnine (obavezno)</Text>
+                            <View style={styles.inlinePickerRow}>
+                              {PROPERTY_OPTIONS.map((option) => (
+                                <Pressable
+                                  key={option.value}
+                                  onPress={() => setPropertyType(option.value)}
+                                  style={({ pressed }) => [
+                                    styles.inlinePickerChip,
+                                    propertyType === option.value && styles.inlinePickerChipActive,
+                                    pressed && styles.pressed,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.inlinePickerChipText,
+                                      propertyType === option.value && styles.inlinePickerChipTextActive,
+                                    ]}
+                                  >
+                                    {option.label}
+                                  </Text>
+                                </Pressable>
+                              ))}
+                            </View>
+                          </View>
+                        )}
+
+                        <Pressable
+                          onPress={() => setShowAdvanced((prev) => !prev)}
+                          style={({ pressed }) => [styles.advancedToggle, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.advancedToggleText}>
+                            {showAdvanced ? "Sakrij vise opcija" : "Prikazi vise opcija"}
+                          </Text>
+                        </Pressable>
+
+                        {showAdvanced && (
+                          <View style={styles.advancedWrap}>
+                            <Text style={styles.label}>Lokacija (opciono)</Text>
+                            <View style={styles.inlinePickerRow}>
+                              {LOCATION_OPTIONS.map((loc) => (
+                                <Pressable
+                                  key={loc}
+                                  onPress={() => setLocationText(loc)}
+                                  style={({ pressed }) => [
+                                    styles.inlinePickerChip,
+                                    locationText === loc && styles.inlinePickerChipActive,
+                                    pressed && styles.pressed,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.inlinePickerChipText,
+                                      locationText === loc && styles.inlinePickerChipTextActive,
+                                    ]}
+                                  >
+                                    {loc}
+                                  </Text>
+                                </Pressable>
+                              ))}
+                            </View>
+
+                            <Text style={styles.label}>Godiste (opciono)</Text>
+                            <View style={styles.rangeRow}>
+                              <TextInput
+                                value={yearFromText}
+                                onChangeText={setYearFromText}
+                                placeholder="Od"
+                                placeholderTextColor={NeoTheme.colors.textDim}
+                                style={[styles.input, styles.rangeInput]}
+                                keyboardType="numeric"
+                              />
+                              <TextInput
+                                value={yearToText}
+                                onChangeText={setYearToText}
+                                placeholder="Do"
+                                placeholderTextColor={NeoTheme.colors.textDim}
+                                style={[styles.input, styles.rangeInput]}
+                                keyboardType="numeric"
+                              />
+                            </View>
+
+                            <Text style={styles.label}>Predjena kilometraza (opciono)</Text>
+                            <View style={styles.rangeRow}>
+                              <TextInput
+                                value={kmFromText}
+                                onChangeText={setKmFromText}
+                                placeholder="Od km"
+                                placeholderTextColor={NeoTheme.colors.textDim}
+                                style={[styles.input, styles.rangeInput]}
+                                keyboardType="numeric"
+                              />
+                              <TextInput
+                                value={kmToText}
+                                onChangeText={setKmToText}
+                                placeholder="Do km"
+                                placeholderTextColor={NeoTheme.colors.textDim}
+                                style={[styles.input, styles.rangeInput]}
+                                keyboardType="numeric"
+                              />
+                            </View>
+                          </View>
+                        )}
                       </View>
                     )}
 
-                    {step >= 2 && (
+                    {step >= 2 && !isAllCategory && (
                       <View style={styles.inputBlock}>
                         <Text style={styles.label}>Maksimalna cena (EUR)</Text>
                         <TextInput
@@ -663,9 +917,27 @@ export default function AlertsScreen() {
                     <Text style={styles.alertTitle}>{item.keywords.join(" ")}</Text>
                     <View style={styles.alertMetaRow}>
                       <Text style={styles.alertPrice}>
-                        {item.priceMax.toLocaleString("sr-RS")} EUR
+                        {typeof item.priceMax === "number"
+                          ? `${item.priceMax.toLocaleString("sr-RS")} EUR`
+                          : "Bez ogranicenja cene"}
                       </Text>
                     </View>
+                    {(item.locationText || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo) && (
+                      <Text style={styles.alertFiltersText}>
+                        {[
+                          item.locationText ? `Lokacija: ${item.locationText}` : null,
+                          item.propertyType ? `Tip: ${item.propertyType}` : null,
+                          item.yearFrom || item.yearTo
+                            ? `Godiste: ${item.yearFrom ?? "-"}-${item.yearTo ?? "-"}`
+                            : null,
+                          item.kmFrom || item.kmTo
+                            ? `KM: ${item.kmFrom ?? "-"}-${item.kmTo ?? "-"}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" | ")}
+                      </Text>
+                    )}
                   </View>
                 </View>
 
@@ -911,6 +1183,12 @@ const styles = StyleSheet.create({
     backgroundColor: NeoTheme.colors.lime,
     borderColor: NeoTheme.colors.lime,
   },
+  categoryPillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   categoryPillText: {
     color: NeoTheme.colors.text,
     fontSize: 13,
@@ -919,9 +1197,96 @@ const styles = StyleSheet.create({
   categoryPillTextActive: {
     color: NeoTheme.colors.black,
   },
+  betaBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.black,
+    backgroundColor: "rgba(0,0,0,0.16)",
+  },
+  betaBadgeText: {
+    color: NeoTheme.colors.black,
+    fontSize: 10,
+    fontFamily: NeoTheme.fonts.bold,
+  },
   inputBlock: {
     marginTop: 2,
     marginBottom: 12,
+  },
+  infoBoxInline: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    backgroundColor: NeoTheme.colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  infoTextInline: {
+    flex: 1,
+    color: NeoTheme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  inlinePickerWrap: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  inlinePickerRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  inlinePickerChip: {
+    backgroundColor: NeoTheme.colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  inlinePickerChipActive: {
+    backgroundColor: NeoTheme.colors.lime,
+    borderColor: NeoTheme.colors.lime,
+  },
+  inlinePickerChipText: {
+    color: NeoTheme.colors.text,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  inlinePickerChipTextActive: {
+    color: NeoTheme.colors.black,
+  },
+  advancedToggle: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    backgroundColor: NeoTheme.colors.surfaceStrong,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  advancedToggleText: {
+    color: NeoTheme.colors.text,
+    fontSize: 13,
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
+  advancedWrap: {
+    marginTop: 12,
+    gap: 8,
+  },
+  rangeRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  rangeInput: {
+    flex: 1,
   },
   label: {
     color: NeoTheme.colors.textMuted,
@@ -1066,6 +1431,13 @@ const styles = StyleSheet.create({
   alertPrice: {
     color: NeoTheme.colors.textMuted,
     fontSize: 13,
+    fontFamily: NeoTheme.fonts.medium,
+  },
+  alertFiltersText: {
+    marginTop: 6,
+    color: NeoTheme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
     fontFamily: NeoTheme.fonts.medium,
   },
   statusBadge: {

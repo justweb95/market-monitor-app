@@ -1,7 +1,7 @@
 import { API_URL } from "@/constants/api";
 import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 type NotificationItem = {
   id: string;
@@ -16,9 +16,17 @@ export function useNotifications(deviceId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasInitialFetch = useRef(false);
+  const inFlightRef = useRef(false);
+  const pendingRefetchRef = useRef(false);
 
   const fetchPendingNotifications = useCallback(async () => {
     if (!deviceId) return;
+    if (inFlightRef.current) {
+      pendingRefetchRef.current = true;
+      return;
+    }
+
+    inFlightRef.current = true;
 
     try {
       setLoading(true);
@@ -28,7 +36,6 @@ export function useNotifications(deviceId: string | null) {
       }
 
       const data = await res.json();
-      console.log("[useNotifications] Fetched pending notifications:", data.length);
 
       if (Array.isArray(data)) {
         setNotifications(
@@ -53,7 +60,13 @@ export function useNotifications(deviceId: string | null) {
       console.error("[useNotifications] Error fetching:", message);
       setError(message);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
+
+      if (pendingRefetchRef.current) {
+        pendingRefetchRef.current = false;
+        void fetchPendingNotifications();
+      }
     }
   }, [deviceId]);
 
@@ -68,7 +81,6 @@ export function useNotifications(deviceId: string | null) {
         throw new Error(`Nije moguce oznaciti kao vidjeno (${res.status})`);
       }
 
-      console.log("[useNotifications] Marked as seen:", notificationId);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (e) {
       const message = e instanceof Error ? e.message : "Nepoznata greska";
@@ -83,34 +95,32 @@ export function useNotifications(deviceId: string | null) {
   useEffect(() => {
     if (!deviceId) return;
 
-    console.log("[useNotifications] Initializing for device:", deviceId);
-
     if (!hasInitialFetch.current) {
-      fetchPendingNotifications();
+      void fetchPendingNotifications();
       hasInitialFetch.current = true;
     }
 
     const appStateSubscription = AppState.addEventListener("change", (state) => {
-      console.log("[useNotifications] AppState changed to:", state);
-
       if (state === "active") {
-        fetchPendingNotifications();
+        void fetchPendingNotifications();
       }
     });
 
+    if (Platform.OS === "web") {
+      return () => {
+        appStateSubscription.remove();
+      };
+    }
+
     const receivedSubscription = Notifications.addNotificationReceivedListener(
       () => {
-        console.log("[useNotifications] Push received - fetching notifications");
-        fetchPendingNotifications();
+        void fetchPendingNotifications();
       },
     );
 
     const responseSubscription =
       Notifications.addNotificationResponseReceivedListener(() => {
-        console.log(
-          "[useNotifications] Notification opened - fetching notifications",
-        );
-        fetchPendingNotifications();
+        void fetchPendingNotifications();
       });
 
     return () => {
