@@ -169,6 +169,33 @@ export function useAccountProfile(deviceId: string | null) {
     [deviceId],
   );
 
+  const cancelDrugarskiCode = useCallback(
+    async () => {
+      if (!deviceId) {
+        throw new Error("Device nije registrovan");
+      }
+
+      const store = getStore(deviceId);
+      const res = await fetch(`${API_URL}/promo/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Otkazivanje nije uspelo (${res.status}): ${await res.text()}`);
+      }
+
+      const data = (await res.json()) as AccountProfile;
+      store.profile = data;
+      store.error = null;
+      store.initialized = true;
+      emit(deviceId);
+      return data;
+    },
+    [deviceId],
+  );
+
   useEffect(() => {
     if (!deviceId) {
       setProfile(null);
@@ -206,5 +233,6 @@ export function useAccountProfile(deviceId: string | null) {
     refresh,
     updateProfile,
     redeemBronzeCode,
+    cancelDrugarskiCode,
   };
 }

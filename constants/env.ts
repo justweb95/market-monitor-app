@@ -1,6 +1,6 @@
 export type PushMode = "auto" | "off";
 
-const DEFAULT_API_BASE_URL = "https://quietistic-unsettlingly-mavis.ngrok-free.dev";
+const DEFAULT_API_BASE_URL = "https://api.lovacnaoglase.rs";
 const rawApiBaseUrl =
   process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE_URL;
 const rawPushMode = process.env.EXPO_PUBLIC_PUSH_MODE?.trim().toLowerCase();

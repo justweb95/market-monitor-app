@@ -28,7 +28,7 @@ type PushRegistrationResult = {
   reason: PushReason;
 };
 
-export function usePushToken(): PushTokenState {
+export function usePushToken(enabled = true): PushTokenState {
   const [state, setState] = useState<PushTokenState>({
     pushToken: null,
     loading: true,
@@ -39,6 +39,21 @@ export function usePushToken(): PushTokenState {
 
   useEffect(() => {
     let mounted = true;
+
+    if (!enabled) {
+      setState({
+        pushToken: null,
+        loading: false,
+        error: null,
+        supported: false,
+        reason: "disabled",
+      });
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setState((prev) => ({ ...prev, loading: true }));
 
     (async () => {
       const result = await registerForPushNotifications();
@@ -57,7 +72,7 @@ export function usePushToken(): PushTokenState {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [enabled]);
 
   return state;
 }

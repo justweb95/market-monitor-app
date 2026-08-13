@@ -1,6 +1,6 @@
-import { Colors } from "@/constants/colors";
+import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -10,8 +10,8 @@ import {
   Text,
   TextInput,
   View,
-  type ReactNode,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { PurchasesPackage } from "react-native-purchases";
 
 type PlanOption = {
@@ -22,12 +22,20 @@ type PlanOption = {
   pkg: PurchasesPackage | null;
 };
 
+const PLAN_ACCENT: Record<PlanOption["tier"], string> = {
+  BRONZE: "#CD7F32",
+  SILVER: "#BFC5CE",
+  GOLD: "#F0C419",
+};
+
 type Props = {
   children: ReactNode;
   isLocked: boolean;
   trialDaysLeft: number;
   planOptions: PlanOption[];
   purchasing: boolean;
+  purchaseError?: string | null;
+  syncingEntitlement?: boolean;
   managementURL: string | null;
   onPurchase: (pkg: PurchasesPackage) => Promise<boolean>;
   onRestorePurchases: () => Promise<boolean>;
@@ -38,9 +46,10 @@ type Props = {
 export function PaywallGate({
   children,
   isLocked,
-  trialDaysLeft,
   planOptions,
   purchasing,
+  purchaseError = null,
+  syncingEntitlement = false,
   managementURL,
   onPurchase,
   onRestorePurchases,
@@ -52,8 +61,8 @@ export function PaywallGate({
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codeSuccess, setCodeSuccess] = useState(false);
   const [codeLoading, setCodeLoading] = useState(false);
-  const [restoreLoading, setRestoreLoading] = useState(false);
-  const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null);
 
   if (!isLocked) return <>{children}</>;
 
@@ -66,6 +75,7 @@ export function PaywallGate({
     try {
       await onRedeemCode(trimmed);
       setCodeSuccess(true);
+      setCode("");
       onRefreshProfile();
     } catch (e) {
       setCodeError(e instanceof Error ? e.message : "Nevazeci kod");
@@ -75,166 +85,202 @@ export function PaywallGate({
   }
 
   async function handleRestore() {
-    setRestoreMsg(null);
-    setRestoreLoading(true);
+    setRestoreError(null);
+    setRestoreSuccess(null);
+
     const ok = await onRestorePurchases();
-    setRestoreLoading(false);
-    if (ok) {
-      setRestoreMsg("Kupovina obnovljena!");
-      onRefreshProfile();
-    } else {
-      setRestoreMsg("Nema aktivnih kupovina za ovaj nalog.");
+    if (!ok) {
+      setRestoreError("Obnova kupovine nije uspela.");
+      return;
     }
+
+    setRestoreSuccess("Kupovina je uspesno obnovljena.");
   }
 
   return (
-    <View style={styles.overlay}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>🔒 Probni period istekao</Text>
         <Text style={styles.subtitle}>
-          Odaberi plan i nastavi da koristiš Lovca na Oglase.
+          Odaberi plan i nastavi da koristis Lovca na Oglase.
         </Text>
 
-        {planOptions.map((plan) => (
-          <Pressable
-            key={plan.tier}
-            style={({ pressed }) => [styles.planCard, pressed && styles.planCardPressed]}
-            onPress={async () => {
-              if (!plan.pkg || purchasing) return;
-              const ok = await onPurchase(plan.pkg);
-              if (ok) onRefreshProfile();
-            }}
-            disabled={purchasing || !plan.pkg}
-          >
-            <View style={styles.planInfo}>
-              <Text style={styles.planLabel}>{plan.label}</Text>
-              <Text style={styles.planMeta}>{plan.alerts} signala</Text>
-            </View>
-            <View style={styles.planPrice}>
-              {purchasing ? (
-                <ActivityIndicator color={Colors.accent} />
-              ) : (
-                <Text style={styles.planPriceText}>{plan.price}</Text>
-              )}
-              {!plan.pkg && (
-                <Text style={styles.planUnavailable}>Nedostupno</Text>
-              )}
-            </View>
-          </Pressable>
-        ))}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Mesecna pretplata</Text>
+          <Text style={styles.noticeText}>Cena je prikazana po mesecu za svaki paket ispod.</Text>
+          <Text style={styles.noticeText}>Pretplata se automatski obnavlja dok je ne otkazes.</Text>
+          <Text style={styles.noticeText}>Otkazivanje radis kroz Google Play Subscriptions.</Text>
+        </View>
 
-        {/* Drugarski code */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Promo / Drugarski kod</Text>
+        <View style={styles.planList}>
+          {planOptions.map((plan) => {
+            const accent = PLAN_ACCENT[plan.tier];
+            return (
+              <Pressable
+                key={plan.tier}
+                style={({ pressed }) => [
+                  styles.planRow,
+                  { borderColor: accent },
+                  pressed && styles.pressed,
+                ]}
+                onPress={async () => {
+                  if (!plan.pkg || purchasing || syncingEntitlement) return;
+                  const ok = await onPurchase(plan.pkg);
+                  if (ok) onRefreshProfile();
+                }}
+                disabled={purchasing || syncingEntitlement || !plan.pkg}
+              >
+                <View style={styles.planCopy}>
+                  <Text style={[styles.planTier, { color: accent }]}>{plan.label}</Text>
+                  <Text style={styles.planMeta}>{plan.alerts} aktivna signala</Text>
+                </View>
+                <View style={styles.planPrice}>
+                  {purchasing ? (
+                    <ActivityIndicator color={NeoTheme.colors.lime} />
+                  ) : (
+                    <>
+                      <Text style={styles.planPriceText}>{plan.price}</Text>
+                      <Text style={styles.planPeriod}>/ mesec</Text>
+                    </>
+                  )}
+                  {!plan.pkg && <Text style={styles.planUnavailable}>Trenutno nije dostupno</Text>}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.purchaseHint}>
+          Kupovinu potvrdjujes u sledecem koraku, pre nego sto Google Play naplata pocne.
+        </Text>
+        {purchaseError ? <Text style={styles.inlineError}>{purchaseError}</Text> : null}
+
+        {syncingEntitlement && (
+          <View style={styles.syncingRow}>
+            <ActivityIndicator color={NeoTheme.colors.lime} size="small" />
+            <Text style={styles.syncingText}>Proveravamo aktivaciju premijuma...</Text>
+          </View>
+        )}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Promo / Drugarski kod</Text>
           <View style={styles.codeRow}>
             <TextInput
               style={styles.codeInput}
               value={code}
               onChangeText={setCode}
               placeholder="Unesi kod"
-              placeholderTextColor="rgba(26,37,23,0.4)"
-              autoCapitalize="none"
+              placeholderTextColor={NeoTheme.colors.textDim}
+              autoCapitalize="characters"
               autoCorrect={false}
             />
             <Pressable
-              style={({ pressed }) => [styles.codeBtn, pressed && styles.codeBtnPressed]}
+              style={({ pressed }) => [styles.codeBtn, pressed && styles.pressed, codeLoading && styles.disabled]}
               onPress={handleRedeem}
               disabled={codeLoading || !code.trim()}
             >
               {codeLoading ? (
-                <ActivityIndicator color={Colors.surface} size="small" />
+                <ActivityIndicator color={NeoTheme.colors.black} size="small" />
               ) : (
                 <Text style={styles.codeBtnText}>Aktiviraj</Text>
               )}
             </Pressable>
           </View>
-          {codeError && <Text style={styles.errorText}>{codeError}</Text>}
-          {codeSuccess && <Text style={styles.successText}>Kod aktiviran!</Text>}
+          {codeError ? <Text style={styles.inlineError}>{codeError}</Text> : null}
+          {codeSuccess ? <Text style={styles.inlineSuccess}>Kod aktiviran!</Text> : null}
         </View>
 
-        {/* Restore purchases */}
-        <Pressable style={styles.restoreBtn} onPress={handleRestore} disabled={restoreLoading}>
-          {restoreLoading ? (
-            <ActivityIndicator color={Colors.text} size="small" />
-          ) : (
-            <Text style={styles.restoreBtnText}>Vrati kupovinu</Text>
-          )}
+        <Pressable style={styles.linkBtn} onPress={handleRestore} disabled={purchasing}>
+          <Text style={styles.linkBtnText}>Vrati kupovinu</Text>
         </Pressable>
-        {restoreMsg && <Text style={styles.restoreMsg}>{restoreMsg}</Text>}
+        {restoreError ? <Text style={styles.inlineError}>{restoreError}</Text> : null}
+        {restoreSuccess ? <Text style={styles.inlineSuccess}>{restoreSuccess}</Text> : null}
 
-        {/* Manage subscription (if user has managementURL) */}
         {managementURL && (
-          <Pressable
-            style={styles.restoreBtn}
-            onPress={() => Linking.openURL(managementURL)}
-          >
-            <Text style={styles.restoreBtnText}>Upravljaj pretplatom</Text>
+          <Pressable style={styles.linkBtn} onPress={() => Linking.openURL(managementURL)}>
+            <Text style={styles.linkBtnText}>Pauziraj automatsko obnavljanje</Text>
           </Pressable>
         )}
 
-        {/* Go to profile */}
-        <Pressable
-          style={styles.profileBtn}
-          onPress={() => router.push("/profile")}
-        >
+        <Pressable style={styles.profileBtn} onPress={() => router.push("/profile")}>
           <Text style={styles.profileBtnText}>Idi na profil →</Text>
         </Pressable>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.background,
-    zIndex: 100,
+  safeArea: {
+    flex: 1,
+    backgroundColor: NeoTheme.colors.background,
   },
   container: {
-    padding: 24,
-    paddingTop: 64,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     paddingBottom: 48,
-    gap: 16,
+    gap: 14,
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
-    color: Colors.text,
+    fontFamily: NeoTheme.fonts.bold,
+    color: NeoTheme.colors.text,
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 15,
-    color: Colors.text,
+    fontSize: 14,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textMuted,
     textAlign: "center",
-    opacity: 0.7,
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  planCard: {
+  card: {
+    borderRadius: 16,
+    backgroundColor: NeoTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.border,
+    padding: 14,
+    gap: 6,
+    ...neoShadow,
+  },
+  cardTitle: {
+    color: NeoTheme.colors.text,
+    fontSize: 15,
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
+  noticeText: {
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textMuted,
+    lineHeight: 18,
+  },
+  planList: {
+    gap: 8,
+  },
+  planRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.surface,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    padding: 14,
   },
-  planCardPressed: {
+  pressed: {
     opacity: 0.75,
   },
-  planInfo: {
+  planCopy: {
     gap: 4,
   },
-  planLabel: {
+  planTier: {
     fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
+    fontFamily: NeoTheme.fonts.bold,
   },
   planMeta: {
-    fontSize: 13,
-    color: Colors.text,
-    opacity: 0.6,
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textMuted,
   },
   planPrice: {
     alignItems: "flex-end",
@@ -242,25 +288,38 @@ const styles = StyleSheet.create({
   },
   planPriceText: {
     fontSize: 16,
-    fontWeight: "700",
-    color: Colors.accent,
+    fontFamily: NeoTheme.fonts.bold,
+    color: NeoTheme.colors.lime,
+  },
+  planPeriod: {
+    fontSize: 11,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textMuted,
   },
   planUnavailable: {
     fontSize: 11,
-    color: Colors.text,
-    opacity: 0.4,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textDim,
   },
-  section: {
+  purchaseHint: {
+    fontSize: 11,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textDim,
+    textAlign: "center",
+    lineHeight: 16,
+    marginTop: -6,
+  },
+  syncingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    marginTop: 8,
+    paddingVertical: 8,
   },
-  sectionLabel: {
+  syncingText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: Colors.text,
-    opacity: 0.7,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontFamily: NeoTheme.fonts.semiBold,
+    color: NeoTheme.colors.lime,
   },
   codeRow: {
     flexDirection: "row",
@@ -268,68 +327,64 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     flex: 1,
-    height: 44,
+    minHeight: 44,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    backgroundColor: "rgba(255,255,255,0.06)",
     paddingHorizontal: 12,
-    fontSize: 15,
-    color: Colors.text,
-    backgroundColor: Colors.surface,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.text,
   },
   codeBtn: {
-    height: 44,
+    minHeight: 44,
     paddingHorizontal: 16,
     borderRadius: 10,
-    backgroundColor: Colors.accent,
+    backgroundColor: NeoTheme.colors.lime,
     alignItems: "center",
     justifyContent: "center",
   },
-  codeBtnPressed: {
-    opacity: 0.8,
-  },
   codeBtnText: {
-    color: Colors.surface,
+    color: NeoTheme.colors.black,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: NeoTheme.fonts.bold,
   },
-  errorText: {
-    fontSize: 13,
-    color: "#C0392B",
+  disabled: {
+    opacity: 0.5,
   },
-  successText: {
-    fontSize: 13,
-    color: "#27AE60",
+  inlineError: {
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.danger,
   },
-  restoreBtn: {
+  inlineSuccess: {
+    fontSize: 12,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.lime,
+  },
+  linkBtn: {
     alignSelf: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  restoreBtnText: {
-    fontSize: 14,
-    color: Colors.text,
-    opacity: 0.6,
-    textDecorationLine: "underline",
-  },
-  restoreMsg: {
-    textAlign: "center",
+  linkBtnText: {
     fontSize: 13,
-    color: Colors.text,
-    opacity: 0.7,
+    fontFamily: NeoTheme.fonts.medium,
+    color: NeoTheme.colors.textMuted,
+    textDecorationLine: "underline",
   },
   profileBtn: {
     alignSelf: "center",
-    marginTop: 8,
+    marginTop: 4,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: Colors.sage,
+    borderColor: NeoTheme.colors.lime,
   },
   profileBtnText: {
     fontSize: 14,
-    color: Colors.text,
-    fontWeight: "600",
+    fontFamily: NeoTheme.fonts.semiBold,
+    color: NeoTheme.colors.lime,
   },
 });

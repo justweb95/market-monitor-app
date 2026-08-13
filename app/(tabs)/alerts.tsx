@@ -2,7 +2,7 @@ import { AppHeader } from "@/components/app-header";
 import { API_URL } from "@/constants/api";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
-import { useDevice } from "@/hooks/useDevice";
+import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -90,6 +90,15 @@ const PROPERTY_OPTIONS: Array<{ value: PropertyType; label: string }> = [
   { value: "LOKAL", label: "Lokal" },
   { value: "PARCELA", label: "Parcela / Zemljiste" },
 ];
+
+const YEAR_FILTER_CATEGORIES = new Set<Category>([
+  "AUTOMOBILI",
+  "AUTO_DELOVI",
+  "MOTORI",
+  "MOTO_DELOVI",
+]);
+
+const KM_FILTER_CATEGORIES = new Set<Category>(["AUTOMOBILI", "MOTORI"]);
 
 const CATALOG: Record<Category, string[]> = {
   AUTOMOBILI: [
@@ -270,7 +279,9 @@ export default function AlertsScreen() {
     loading: deviceLoading,
     error: deviceError,
     notificationMode,
+    pushReason,
     ensureDeviceRegistered,
+    invalidateDeviceRegistration,
   } = useDevice();
   const { profile, refresh: refreshProfile } = useAccountProfile(deviceId);
 
@@ -296,25 +307,41 @@ export default function AlertsScreen() {
   const [kmToText, setKmToText] = useState("");
   const [propertyType, setPropertyType] = useState<PropertyType | null>(null);
 
-  const fetchAlerts = useCallback(async () => {
-    if (!deviceId) return;
-    setLoadingAlerts(true);
-    try {
-      const res = await fetch(`${API_URL}/alerts/${deviceId}`);
-      if (!res.ok) {
-        throw new Error(
-          `Ucitavanje obavestenja nije uspelo (${res.status}): ${await res.text()}`,
-        );
+  const fetchAlerts = useCallback(
+    async (isRetry = false): Promise<void> => {
+      if (!deviceId) return;
+      setLoadingAlerts(true);
+      try {
+        const res = await fetch(`${API_URL}/alerts/${deviceId}`);
+
+        if (res.status === 404 && !isRetry) {
+          // Lokalno sacuvan deviceId vise ne postoji na serveru (npr. stara
+          // instalacija gadjala je drugi backend). Tiho registrujemo nov
+          // uredjaj i probamo jednom ponovo, bez da korisnik ista primeti.
+          await invalidateDeviceRegistration();
+          await ensureDeviceRegistered();
+          return fetchAlerts(true);
+        }
+
+        if (!res.ok) {
+          setFormError(
+            res.status >= 500
+              ? "Server trenutno nije dostupan. Pokusaj ponovo za par trenutaka."
+              : "Ucitavanje signala nije uspelo. Povuci na dole da osvezis stranicu.",
+          );
+          return;
+        }
+        const data = await res.json();
+        setItems(data);
+        setFormError(null);
+      } catch {
+        setFormError("Ucitavanje signala nije uspelo. Proveri internet konekciju i pokusaj ponovo.");
+      } finally {
+        setLoadingAlerts(false);
       }
-      const data = await res.json();
-      setItems(data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setFormError(message);
-    } finally {
-      setLoadingAlerts(false);
-    }
-  }, [deviceId]);
+    },
+    [deviceId, ensureDeviceRegistered, invalidateDeviceRegistration],
+  );
 
   useEffect(() => {
     void fetchAlerts();
@@ -356,11 +383,12 @@ export default function AlertsScreen() {
       }
       const updated = await res.json();
       setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      void refreshProfile();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setFormError(message);
     }
-  }, []);
+  }, [refreshProfile]);
 
   const deleteItem = useCallback((id: string) => {
     Alert.alert("Brisanje", "Da li sigurno zelis da obrises signal?", [
@@ -375,6 +403,7 @@ export default function AlertsScreen() {
               throw new Error(`Brisanje nije uspelo (${res.status}): ${await res.text()}`);
             }
             setItems((prev) => prev.filter((item) => item.id !== id));
+            void refreshProfile();
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             setFormError(message);
@@ -382,7 +411,7 @@ export default function AlertsScreen() {
         },
       },
     ]);
-  }, []);
+  }, [refreshProfile]);
 
   const suggestions = useMemo(() => {
     if (!category) return [];
@@ -405,6 +434,8 @@ export default function AlertsScreen() {
   const isPropertyOk = !isPropertyRequired || !!propertyType;
   const priceNum = Number(priceText.replace(",", "."));
   const isPriceOk = isAllCategory || (Number.isFinite(priceNum) && priceNum > 0);
+  const showYearFilter = !!category && YEAR_FILTER_CATEGORIES.has(category);
+  const showKmFilter = !!category && KM_FILTER_CATEGORIES.has(category);
 
   const yearFromNum = yearFromText.trim() ? Number(yearFromText) : null;
   const yearToNum = yearToText.trim() ? Number(yearToText) : null;
@@ -412,14 +443,16 @@ export default function AlertsScreen() {
   const kmToNum = kmToText.trim() ? Number(kmToText) : null;
 
   const isYearRangeOk =
-    (yearFromNum === null || Number.isFinite(yearFromNum)) &&
+    !showYearFilter ||
+    ((yearFromNum === null || Number.isFinite(yearFromNum)) &&
     (yearToNum === null || Number.isFinite(yearToNum)) &&
-    (yearFromNum === null || yearToNum === null || yearFromNum <= yearToNum);
+    (yearFromNum === null || yearToNum === null || yearFromNum <= yearToNum));
 
   const isKmRangeOk =
-    (kmFromNum === null || Number.isFinite(kmFromNum)) &&
+    !showKmFilter ||
+    ((kmFromNum === null || Number.isFinite(kmFromNum)) &&
     (kmToNum === null || Number.isFinite(kmToNum)) &&
-    (kmFromNum === null || kmToNum === null || kmFromNum <= kmToNum);
+    (kmFromNum === null || kmToNum === null || kmFromNum <= kmToNum));
 
   const primaryLabel =
     savingAlert
@@ -478,10 +511,10 @@ export default function AlertsScreen() {
         priceMax: isAllCategory ? null : Math.round(priceNum),
         locationText: locationText === "Svi regioni" ? "" : locationText,
         propertyType: category === "NEKRETNINE" ? propertyType : null,
-        yearFrom: yearFromNum,
-        yearTo: yearToNum,
-        kmFrom: kmFromNum,
-        kmTo: kmToNum,
+        yearFrom: showYearFilter ? yearFromNum : null,
+        yearTo: showYearFilter ? yearToNum : null,
+        kmFrom: showKmFilter ? kmFromNum : null,
+        kmTo: showKmFilter ? kmToNum : null,
       };
 
       const res = await fetch(`${API_URL}/alerts`, {
@@ -501,6 +534,7 @@ export default function AlertsScreen() {
 
       setItems((prev) => [newAlert, ...prev]);
       resetForm();
+      void refreshProfile();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setFormError(message);
@@ -521,7 +555,10 @@ export default function AlertsScreen() {
     priceNum,
     primaryDisabled,
     productName,
+    refreshProfile,
     resetForm,
+    showKmFilter,
+    showYearFilter,
     step,
     yearFromNum,
     yearToNum,
@@ -538,7 +575,7 @@ export default function AlertsScreen() {
     );
   }
 
-  if (deviceError && Platform.OS !== "web") {
+  if (!deviceId && deviceError && Platform.OS !== "web") {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.centered}>
@@ -595,7 +632,9 @@ export default function AlertsScreen() {
                       color={NeoTheme.colors.lime}
                     />
                     <Text style={styles.infoText}>
-                      Emulator mod: signali rade, ali remote push testiraj na fizickom uredjaju.
+                      {pushReason === "permission"
+                        ? "Notifikacije su iskljucene jer nisi dao dozvolu telefonu. Ukljuci ih u podesavanjima telefona da bi primao push obavestenja o novim oglasima."
+                        : "Emulator mod: signali rade, ali remote push testiraj na fizickom uredjaju."}
                     </Text>
                   </View>
                 )}
@@ -797,45 +836,53 @@ export default function AlertsScreen() {
                               ))}
                             </View>
 
-                            <Text style={styles.label}>Godiste (opciono)</Text>
-                            <View style={styles.rangeRow}>
-                              <TextInput
-                                value={yearFromText}
-                                onChangeText={setYearFromText}
-                                placeholder="Od"
-                                placeholderTextColor={NeoTheme.colors.textDim}
-                                style={[styles.input, styles.rangeInput]}
-                                keyboardType="numeric"
-                              />
-                              <TextInput
-                                value={yearToText}
-                                onChangeText={setYearToText}
-                                placeholder="Do"
-                                placeholderTextColor={NeoTheme.colors.textDim}
-                                style={[styles.input, styles.rangeInput]}
-                                keyboardType="numeric"
-                              />
-                            </View>
+                            {showYearFilter && (
+                              <>
+                                <Text style={styles.label}>Godiste (opciono)</Text>
+                                <View style={styles.rangeRow}>
+                                  <TextInput
+                                    value={yearFromText}
+                                    onChangeText={setYearFromText}
+                                    placeholder="Od"
+                                    placeholderTextColor={NeoTheme.colors.textDim}
+                                    style={[styles.input, styles.rangeInput]}
+                                    keyboardType="numeric"
+                                  />
+                                  <TextInput
+                                    value={yearToText}
+                                    onChangeText={setYearToText}
+                                    placeholder="Do"
+                                    placeholderTextColor={NeoTheme.colors.textDim}
+                                    style={[styles.input, styles.rangeInput]}
+                                    keyboardType="numeric"
+                                  />
+                                </View>
+                              </>
+                            )}
 
-                            <Text style={styles.label}>Predjena kilometraza (opciono)</Text>
-                            <View style={styles.rangeRow}>
-                              <TextInput
-                                value={kmFromText}
-                                onChangeText={setKmFromText}
-                                placeholder="Od km"
-                                placeholderTextColor={NeoTheme.colors.textDim}
-                                style={[styles.input, styles.rangeInput]}
-                                keyboardType="numeric"
-                              />
-                              <TextInput
-                                value={kmToText}
-                                onChangeText={setKmToText}
-                                placeholder="Do km"
-                                placeholderTextColor={NeoTheme.colors.textDim}
-                                style={[styles.input, styles.rangeInput]}
-                                keyboardType="numeric"
-                              />
-                            </View>
+                            {showKmFilter && (
+                              <>
+                                <Text style={styles.label}>Predjena kilometraza (opciono)</Text>
+                                <View style={styles.rangeRow}>
+                                  <TextInput
+                                    value={kmFromText}
+                                    onChangeText={setKmFromText}
+                                    placeholder="Od km"
+                                    placeholderTextColor={NeoTheme.colors.textDim}
+                                    style={[styles.input, styles.rangeInput]}
+                                    keyboardType="numeric"
+                                  />
+                                  <TextInput
+                                    value={kmToText}
+                                    onChangeText={setKmToText}
+                                    placeholder="Do km"
+                                    placeholderTextColor={NeoTheme.colors.textDim}
+                                    style={[styles.input, styles.rangeInput]}
+                                    keyboardType="numeric"
+                                  />
+                                </View>
+                              </>
+                            )}
                           </View>
                         )}
                       </View>
@@ -1202,11 +1249,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: NeoTheme.colors.black,
-    backgroundColor: "rgba(0,0,0,0.16)",
+    borderColor: NeoTheme.colors.lime,
+    backgroundColor: "rgba(215,242,13,0.16)",
   },
   betaBadgeText: {
-    color: NeoTheme.colors.black,
+    color: NeoTheme.colors.lime,
     fontSize: 10,
     fontFamily: NeoTheme.fonts.bold,
   },

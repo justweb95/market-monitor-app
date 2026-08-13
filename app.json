@@ -4,7 +4,7 @@
     "slug": "market-monitor-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/ChatGPT_Image_Apr_21__2026__10_40_33_PM-removebg-preview.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "marketmonitorapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -19,9 +19,9 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0D1117",
-        "foregroundImage": "./assets/images/ChatGPT_Image_Apr_21__2026__10_40_33_PM-removebg-preview.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/ChatGPT_Image_Apr_21__2026__10_40_33_PM-removebg-preview.png"
+        "monochromeImage": "./assets/images/logo.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -31,28 +31,25 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "notification": {
-      "vapidPublicKey": "BL3gMHNGHsWSKM-2nVoqNZA3H2MvXNG2L6qwRZQSOPCL3a_sfyvgHfE0vhmduIyDcBlyN9e-LsjssVxO-r-D05U"
-    },
     "plugins": [
       "expo-router",
       "expo-dev-client",
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification.png",
-          "color": "#FF0000"
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#D7F20D"
         }
       ],
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+           "backgroundColor": "#161616",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#161616"
           }
         }
       ]

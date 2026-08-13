@@ -1,50 +1,66 @@
-# Welcome to your Expo app 👋
+# market-monitor-app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mobile aplikacija za Market Monitor / Lovac na Oglase.
 
-## Get started
+## Stack
 
-1. Install dependencies
+- Expo + React Native
+- Expo Router
+- Expo Notifications
+- RevenueCat (`react-native-purchases`)
 
-   ```bash
-   npm install
-   ```
+## Trenutni status
 
-2. Start the app
+- Core UX i glavni flow-ovi su funkcionalni.
+- Trial/subscription/paywall integracija je aktivna.
+- Profil ekran prikazuje trial i subscription stanje.
+- Potreban finalni deployment i E2E verifikacija na Android/iOS buildovima.
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Pokretanje
 
 ```bash
-npm run reset-project
+npm install
+npm run start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Korisne skripte:
 
-## Learn more
+- `npm run android`
+- `npm run ios`
+- `npm run web`
+- `npm run build:android:test`
 
-To learn more about developing your project with Expo, look at the following resources:
+## Konfiguracija okruzenja
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Aplikacija koristi ove env promenljive:
 
-## Join the community
+- `EXPO_PUBLIC_API_URL`
+- `EXPO_PUBLIC_PUSH_MODE` (`auto` ili `off`)
+- `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+- `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
 
-Join our community of developers creating universal apps.
+Napomena:
+- Default API fallback je trenutno ngrok URL definisan u `constants/env.ts`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Kljucni delovi aplikacije
+
+- `app/(tabs)/index.tsx` - Home ekran
+- `app/(tabs)/alerts.tsx` - Alert management
+- `app/(tabs)/favorites.tsx` - Favoriti
+- `app/profile.tsx` - Profil, promo code i subscription akcije
+- `components/paywall-gate.tsx` - Zakljucavanje aplikacije po subscription logici
+- `hooks/useSubscription.ts` - RevenueCat tok (offerings, purchase, restore)
+- `hooks/useAccountProfile.ts` - Profil stanje i plan/tier polja
+
+## Produkcija - prioriteti
+
+1. Potvrditi Android build na fizickom uredjaju (sanity + push test).
+2. Zavrsiti iOS build/TestFlight tok.
+3. Verifikovati subscription webhook tok od kupovine do backend status update-a.
+4. Dokumentovati finalni release flow (build -> smoke test -> rollout).
+
+## Povezano
+
+- Root status: `../README.md`
+- Subscription detalji: `../SUBSCRIPTION_SYSTEM.md`
+- Operativni plan: `../nextstep.md`

@@ -1,7 +1,7 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
-import { useDevice } from "@/hooks/useDevice";
+import { useDevice } from "@/contexts/DeviceContext";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useNotifications } from "@/hooks/useNotifications";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -9,12 +9,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  FlatList,
   Image,
   Linking,
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -92,14 +92,6 @@ function formatPriceLabel(priceText?: string): string | null {
   return priceText.replace(/\s*EUR/i, " €");
 }
 
-function chunkItems<T>(items: T[], chunkSize: number): T[][] {
-  const rows: T[][] = [];
-  for (let index = 0; index < items.length; index += chunkSize) {
-    rows.push(items.slice(index, index + chunkSize));
-  }
-  return rows;
-}
-
 export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
@@ -156,7 +148,6 @@ export default function HomeScreen() {
         : 0;
 
   const columnCount = width > 380 ? 2 : 1;
-  const listingRows = useMemo(() => chunkItems(displayItems, columnCount), [columnCount, displayItems]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -288,12 +279,20 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
         <AppHeader
-          rightLabel="Profil"
-          rightIcon="person-circle-outline"
+          rightLabel="Podešavanja"
+          rightIcon="settings-outline"
           onRightPress={() => router.push("/profile")}
         />
 
-        <ScrollView
+        <FlatList
+          key={columnCount}
+          data={displayItems}
+          keyExtractor={(item) => item.id}
+          numColumns={columnCount}
+          columnWrapperStyle={columnCount > 1 ? styles.gridRow : undefined}
+          renderItem={({ item }) => (
+            <View style={styles.gridCol}>{renderListingCard(item)}</View>
+          )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -303,74 +302,68 @@ export default function HomeScreen() {
           }
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-        >
-          <LinearGradient
-            colors={["#060606", "#141414", "#23290B"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
-            <View style={styles.heroContent}>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>Kreiraj prvi signal.</Text>
-                <Text style={styles.heroBody}>
-                  Podesi kategoriju, naziv i cenu, a aplikacija prati oglase koje trazis i javlja cim se pojavi dobar rezultat.
-                </Text>
-                <Pressable
-                  onPress={() => router.push("/alerts")}
-                  style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}
-                >
-                  <Text style={styles.heroButtonText}>Idi na signal</Text>
-                  <Ionicons name="arrow-forward" size={16} color={NeoTheme.colors.black} />
-                </Pressable>
-              </View>
-
-              <View style={styles.heroStatCard}>
-                <Text style={styles.heroStatLabel}>Aktivnih signala</Text>
-                <Text style={styles.heroStatValue}>
-                  {displaySignalCount}/{displaySignalLimit}
-                </Text>
-                <Text style={styles.heroStatFoot}>Kreni od jednog preciznog kriterijuma.</Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          <View style={styles.filterRow}>
-            {FILTERS.map((filter) => {
-              const focused = activeFilter === filter.key;
-              return (
-                <Pressable
-                  key={filter.key}
-                  onPress={() => setActiveFilter(filter.key)}
-                  style={styles.filterItem}
-                >
-                  <Text style={[styles.filterText, focused && styles.filterTextActive]}>
-                    {filter.label}
-                  </Text>
-                  <View style={[styles.filterUnderline, focused && styles.filterUnderlineActive]} />
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {listingRows.length > 0 ? (
-            listingRows.map((row, rowIndex) => (
-              <View key={`row-${rowIndex}`} style={styles.gridRow}>
-                {row.map((notif) => (
-                  <View key={notif.id} style={styles.gridCol}>
-                    {renderListingCard(notif)}
+          removeClippedSubviews
+          maxToRenderPerBatch={15}
+          windowSize={7}
+          initialNumToRender={10}
+          ListHeaderComponent={
+            <>
+              <LinearGradient
+                colors={["#060606", "#141414", "#23290B"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCard}
+              >
+                <View style={styles.heroContent}>
+                  <View style={styles.heroCopy}>
+                    <Text style={styles.heroTitle}>Kreiraj prvi signal.</Text>
+                    <Text style={styles.heroBody}>
+                      Podesi kategoriju, naziv i cenu, a aplikacija prati oglase koje trazis i javlja cim se pojavi dobar rezultat.
+                    </Text>
+                    <Pressable
+                      onPress={() => router.push("/alerts")}
+                      style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}
+                    >
+                      <Text style={styles.heroButtonText}>Idi na signal</Text>
+                      <Ionicons name="arrow-forward" size={16} color={NeoTheme.colors.black} />
+                    </Pressable>
                   </View>
-                ))}
-                {columnCount === 2 && row.length === 1 ? <View style={styles.gridCol} /> : null}
+
+                  <View style={styles.heroStatCard}>
+                    <Text style={styles.heroStatLabel}>Aktivnih signala</Text>
+                    <Text style={styles.heroStatValue}>
+                      {displaySignalCount}/{displaySignalLimit}
+                    </Text>
+                    <Text style={styles.heroStatFoot}>Kreni od jednog preciznog kriterijuma.</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+
+              <View style={styles.filterRow}>
+                {FILTERS.map((filter) => {
+                  const focused = activeFilter === filter.key;
+                  return (
+                    <Pressable
+                      key={filter.key}
+                      onPress={() => setActiveFilter(filter.key)}
+                      style={styles.filterItem}
+                    >
+                      <Text style={[styles.filterText, focused && styles.filterTextActive]}>
+                        {filter.label}
+                      </Text>
+                      <View style={[styles.filterUnderline, focused && styles.filterUnderlineActive]} />
+                    </Pressable>
+                  );
+                })}
               </View>
-            ))
-          ) : (
+            </>
+          }
+          ListEmptyComponent={
             <View style={styles.emptyBoxCompact}>
               <Text style={styles.emptyText}>Izaberi drugi filter ili povuci za osvezavanje.</Text>
             </View>
-          )}
-        </ScrollView>
-
+          }
+        />
       </View>
     </SafeAreaView>
   );
@@ -660,12 +653,11 @@ const styles = StyleSheet.create({
     fontFamily: NeoTheme.fonts.bold,
   },
   gridRow: {
-    flexDirection: "row",
     gap: 12,
-    marginBottom: 12,
   },
   gridCol: {
     flex: 1,
+    marginBottom: 12,
   },
   disabledButton: {
     opacity: 0.4,

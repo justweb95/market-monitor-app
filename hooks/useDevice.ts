@@ -5,6 +5,9 @@ import { Platform } from "react-native";
 import { usePushToken } from "./usePushToken";
 
 const DEVICE_ID_KEY = "market_monitor_device_id";
+const MOCK_PUSH_TOKEN_KEY = "market_monitor_mock_push_token";
+const NOTIFICATIONS_ENABLED_KEY = "market_monitor_notifications_enabled";
+const LAST_SENT_PUSH_TOKEN_KEY = "market_monitor_last_sent_push_token";
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 const INVALID_DEVICE_IDS = new Set([
@@ -27,27 +30,40 @@ function getNotificationMode(
   pushReason: string | null,
   pushToken: string | null,
 ): NotificationMode {
-  if (!pushSupported) {
-    return pushReason === "simulator" && Platform.OS === "android"
-      ? "mock"
-      : "disabled";
+  if (Platform.OS === "web") {
+    return "disabled";
   }
 
-  return pushToken ? "remote" : "disabled";
+  if (!pushSupported) {
+    return "mock";
+  }
+
+  return pushToken ? "remote" : "mock";
+}
+
+async function getOrCreateMockPushToken() {
+  const existing = await AsyncStorage.getItem(MOCK_PUSH_TOKEN_KEY);
+  if (existing?.trim()) return existing;
+
+  const generated = `mock:${Platform.OS}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+  await AsyncStorage.setItem(MOCK_PUSH_TOKEN_KEY, generated);
+  return generated;
 }
 
 function isStoredDeviceIdValid(deviceId: string | null): deviceId is string {
   return !!deviceId && !INVALID_DEVICE_IDS.has(deviceId.trim());
 }
 
-export function useDevice() {
+export function useDeviceState() {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationsPreferenceLoaded, setNotificationsPreferenceLoaded] = useState(false);
   const {
     pushToken,
     loading: pushTokenLoading,
     error: pushTokenError,
     supported: pushSupported,
     reason: pushReason,
-  } = usePushToken();
+  } = usePushToken(notificationsEnabled);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,9 +84,11 @@ export function useDevice() {
       }
 
       const mode = getNotificationMode(pushSupported, pushReason, pushToken);
-      setNotificationMode(mode);
+      const shouldUseRemotePush = notificationsEnabled && mode === "remote";
+      const resolvedMode: NotificationMode = notificationsEnabled ? mode : "disabled";
+      setNotificationMode(resolvedMode);
 
-      if (mode === "disabled") {
+      if (notificationsEnabled && mode === "disabled") {
         throw new Error(
           pushTokenError ||
             "Push registracija jos nije spremna. Proveri dozvole i push setup.",
@@ -79,13 +97,11 @@ export function useDevice() {
 
       const payload = {
         deviceId: storedDeviceId,
-        platform: mode === "mock" ? "android-emulator" : Platform.OS,
+        platform: Platform.OS.toUpperCase(),
         expoPushToken:
-          mode === "remote"
+          shouldUseRemotePush
             ? pushToken
-            : mode === "mock"
-              ? `mock:${Platform.OS}`
-              : null,
+            : await getOrCreateMockPushToken(),
         ...(account
           ? {
               firstName: account.firstName.trim(),
@@ -105,16 +121,36 @@ export function useDevice() {
       });
 
       if (!res.ok) {
-        let details = "";
-        try {
-          const data = await res.json();
-          details = data?.error ? ` ${data.error}` : "";
-        } catch {
-          details = ` ${await res.text()}`;
+        if (res.status === 429) {
+          const retryAfterSec = Number(res.headers.get("Retry-After"));
+          const waitMinutes = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+            ? Math.ceil(retryAfterSec / 60)
+            : null;
+          const rateLimitError = new Error(
+            waitMinutes
+              ? `Previse pokusaja registracije. Pokusaj ponovo za oko ${waitMinutes} min.`
+              : "Previse pokusaja registracije. Pokusaj ponovo kasnije.",
+          ) as Error & { status?: number };
+          rateLimitError.status = 429;
+          throw rateLimitError;
         }
-        throw new Error(
-          `Registracija uredaja nije uspela (${res.status}).${details}`,
-        );
+
+        const rawBody = await res.text();
+        // Backend salje ili { error: "citljiva poruka" } ili, za Zod validacione
+        // greske, { error: "Nevaljana ulazna polja", details: [{field, message}] }
+        // — details[0].message je specificna i citljiva (npr. "Email adresa nije
+        // validna"), dok je top-level error generican. Prikazujemo korisniku
+        // najspecificniju poruku koju imamo, nikad sirov status kod.
+        let friendlyMessage = "Registracija uredjaja nije uspela. Pokusaj ponovo.";
+        try {
+          const data = JSON.parse(rawBody);
+          friendlyMessage = data?.details?.[0]?.message || data?.error || friendlyMessage;
+        } catch {
+          // rawBody nije JSON (npr. HTML greska sa proxy-ja) — ostaje generican tekst
+        }
+        const httpError = new Error(friendlyMessage) as Error & { status?: number };
+        httpError.status = res.status;
+        throw httpError;
       }
 
       const device = await res.json();
@@ -123,13 +159,19 @@ export function useDevice() {
       }
 
       await AsyncStorage.setItem(DEVICE_ID_KEY, device.id);
+      if (typeof payload.expoPushToken === "string") {
+        await AsyncStorage.setItem(LAST_SENT_PUSH_TOKEN_KEY, payload.expoPushToken);
+      }
       setDeviceId(device.id);
       return device.id;
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
+      const status = e instanceof Error ? (e as Error & { status?: number }).status : undefined;
+      // Client errors (4xx) won't succeed on retry - only retry network failures / server errors.
+      const isRetryable = status === undefined || status >= 500;
       setError(errorMsg);
 
-      if (retryCount < MAX_RETRIES && !pushTokenLoading) {
+      if (isRetryable && retryCount < MAX_RETRIES && !pushTokenLoading) {
         setTimeout(() => {
           setRetryCount((prev) => prev + 1);
         }, RETRY_DELAY);
@@ -145,8 +187,39 @@ export function useDevice() {
     pushToken,
     pushTokenError,
     pushTokenLoading,
+    notificationsEnabled,
     retryCount,
   ]);
+
+  const updateNotificationsEnabled = useCallback(async (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
+    await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, JSON.stringify(enabled));
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    AsyncStorage.getItem(NOTIFICATIONS_ENABLED_KEY)
+      .then((storedValue) => {
+        if (!mounted) return;
+
+        if (storedValue === null) {
+          setNotificationsEnabled(true);
+        } else {
+          setNotificationsEnabled(storedValue === "true");
+        }
+        setNotificationsPreferenceLoaded(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setNotificationsEnabled(true);
+        setNotificationsPreferenceLoaded(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const ensureDeviceRegistered = useCallback(async (): Promise<string> => {
     if (isStoredDeviceIdValid(deviceId)) {
@@ -165,20 +238,30 @@ export function useDevice() {
 
   const invalidateDeviceRegistration = useCallback(async () => {
     await AsyncStorage.removeItem(DEVICE_ID_KEY);
+    await AsyncStorage.removeItem(LAST_SENT_PUSH_TOKEN_KEY);
     setDeviceId(null);
   }, []);
 
   useEffect(() => {
-    setNotificationMode(getNotificationMode(pushSupported, pushReason, pushToken));
-  }, [pushReason, pushSupported, pushToken]);
+    if (!notificationsPreferenceLoaded) return;
+    setNotificationMode(
+      notificationsEnabled
+        ? getNotificationMode(pushSupported, pushReason, pushToken)
+        : "disabled",
+    );
+  }, [notificationsEnabled, notificationsPreferenceLoaded, pushReason, pushSupported, pushToken]);
 
   useEffect(() => {
+    if (!notificationsPreferenceLoaded) {
+      return;
+    }
+
     if (pushTokenLoading) {
       return;
     }
 
     const mode = getNotificationMode(pushSupported, pushReason, pushToken);
-    if (mode === "disabled") {
+    if (notificationsEnabled && mode === "disabled") {
       setLoading(false);
       if (pushTokenError) {
         setError(pushTokenError);
@@ -186,15 +269,48 @@ export function useDevice() {
       return;
     }
 
-    registerDevice().catch(() => {
-      // registration error state is already stored locally
-    });
+    let cancelled = false;
+
+    (async () => {
+      const shouldUseRemotePush = notificationsEnabled && mode === "remote";
+      const effectiveToken = shouldUseRemotePush
+        ? pushToken
+        : await getOrCreateMockPushToken();
+
+      const [storedId, lastSentToken] = await Promise.all([
+        AsyncStorage.getItem(DEVICE_ID_KEY),
+        AsyncStorage.getItem(LAST_SENT_PUSH_TOKEN_KEY),
+      ]);
+      const storedDeviceId = isStoredDeviceIdValid(storedId) ? storedId : null;
+
+      if (cancelled) return;
+
+      if (storedDeviceId && effectiveToken && effectiveToken === lastSentToken) {
+        // Device is already registered and the backend already has this exact push
+        // token - re-hydrate local state without hitting the rate-limited endpoint
+        // again. Registration should happen once per device, not once per app launch.
+        setDeviceId(storedDeviceId);
+        setNotificationMode(notificationsEnabled ? mode : "disabled");
+        setLoading(false);
+        return;
+      }
+
+      registerDevice().catch(() => {
+        // registration error state is already stored locally
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     pushReason,
     pushSupported,
     pushToken,
     pushTokenError,
     pushTokenLoading,
+    notificationsEnabled,
+    notificationsPreferenceLoaded,
     registerDevice,
     retryCount,
   ]);
@@ -205,9 +321,13 @@ export function useDevice() {
     error,
     retryCount,
     notificationMode,
+    pushReason,
+    notificationsEnabled,
+    notificationsPreferenceLoaded,
     supportsRemotePush: !!pushToken,
     pushTokenLoading,
     pushTokenError,
+    updateNotificationsEnabled,
     ensureDeviceRegistered,
     linkAccountToDevice,
     invalidateDeviceRegistration,

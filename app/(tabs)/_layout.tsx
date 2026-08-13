@@ -4,6 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import React from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function TabIcon({
   name,
@@ -23,6 +24,8 @@ function TabIcon({
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -30,7 +33,14 @@ export default function TabLayout() {
         tabBarShowLabel: false,
         tabBarButton: HapticTab,
         sceneStyle: { backgroundColor: NeoTheme.colors.background },
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 50 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 8),
+            bottom: 0,
+          },
+        ],
         tabBarActiveTintColor: NeoTheme.colors.lime,
         tabBarInactiveTintColor: "rgba(255,255,255,0.78)",
       }}
@@ -71,17 +81,18 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: "absolute",
-    left: 10,
-    right: 10,
-    bottom: 20,
-    height: 52,
-    paddingTop: 8,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 50,
+    paddingTop: 6,
     paddingBottom: 8,
     borderTopWidth: 0,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    borderRadius: 22,
-    backgroundColor: NeoTheme.colors.surface,
+    borderRadius: 0,
+    backgroundColor: NeoTheme.colors.background,
+    opacity: 1,
     overflow: "hidden",
     ...neoShadow,
   },
