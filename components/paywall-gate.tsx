@@ -1,6 +1,6 @@
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { useRouter } from "expo-router";
-import React, { useState, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -63,6 +63,22 @@ export function PaywallGate({
   const [codeLoading, setCodeLoading] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null);
+
+  // The gate doesn't unmount when isLocked flips - it just stops rendering
+  // its own JSX and renders children instead. Without this, a stale
+  // "Kod aktiviran!" / "Kupovina je uspesno obnovljena" success message from
+  // a previous unlock would still be sitting in state the next time the
+  // trial/subscription lapses and the gate reappears.
+  useEffect(() => {
+    if (isLocked) {
+      setCode("");
+      setCodeError(null);
+      setCodeSuccess(false);
+      setCodeLoading(false);
+      setRestoreError(null);
+      setRestoreSuccess(null);
+    }
+  }, [isLocked]);
 
   if (!isLocked) return <>{children}</>;
 

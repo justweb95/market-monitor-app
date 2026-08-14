@@ -1,6 +1,6 @@
 import { API_URL } from "@/constants/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { usePushToken } from "./usePushToken";
 
@@ -68,6 +68,15 @@ export function useDeviceState() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
   const [notificationMode, setNotificationMode] =
     useState<NotificationMode>("disabled");
 
@@ -178,7 +187,11 @@ export function useDeviceState() {
       setError(errorMsg);
 
       if (isRetryable && retryCount < MAX_RETRIES && !pushTokenLoading) {
-        setTimeout(() => {
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
+        retryTimeoutRef.current = setTimeout(() => {
+          retryTimeoutRef.current = null;
           setRetryCount((prev) => prev + 1);
         }, RETRY_DELAY);
       }

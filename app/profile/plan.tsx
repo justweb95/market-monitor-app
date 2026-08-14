@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/app-header";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import type { PlanTier } from "@/hooks/useAccountProfile";
 import { useDevice } from "@/contexts/DeviceContext";
@@ -120,7 +121,7 @@ export default function PlanScreen() {
   };
 
   const isDrugarskiActive = useMemo(
-    () => profile?.user?.promoCodeUsed === "03081995",
+    () => profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE,
     [profile?.user?.promoCodeUsed],
   );
 

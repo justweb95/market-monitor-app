@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/app-header";
 import { API_URL } from "@/constants/api";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
+import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
 import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
@@ -350,7 +351,7 @@ export default function AlertsScreen() {
   const isWebPreview = Platform.OS === "web" && items.length === 0;
   const displayItems = isWebPreview ? [WEB_PREVIEW_ALERT] : items;
   const totalCount = displayItems.length;
-  const isDrugarskiActive = profile?.user?.promoCodeUsed === "03081995";
+  const isDrugarskiActive = profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE;
   const alertLimit =
     profile?.alertLimit && profile.alertLimit > 0
       ? profile.alertLimit
