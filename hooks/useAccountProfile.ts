@@ -90,6 +90,7 @@ export function useAccountProfile(deviceId: string | null) {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!deviceId) return null;
@@ -201,6 +202,7 @@ export function useAccountProfile(deviceId: string | null) {
       setProfile(null);
       setError(null);
       setLoading(false);
+      setInitialized(false);
       return;
     }
 
@@ -209,6 +211,7 @@ export function useAccountProfile(deviceId: string | null) {
       setProfile(store.profile);
       setError(store.error);
       setLoading(store.loading);
+      setInitialized(store.initialized);
     };
 
     syncFromStore();
@@ -230,6 +233,7 @@ export function useAccountProfile(deviceId: string | null) {
     profile,
     loading,
     error,
+    initialized,
     refresh,
     updateProfile,
     redeemBronzeCode,

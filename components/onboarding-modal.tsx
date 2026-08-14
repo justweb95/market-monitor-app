@@ -1,6 +1,5 @@
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -40,69 +39,22 @@ type Props = {
 };
 
 export function OnboardingModal({ visible, onDismiss }: Props) {
-  const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
 
-  const isAccountStep = stepIndex === STEPS.length;
   const isLastStep = stepIndex === STEPS.length - 1;
   const step = STEPS[stepIndex];
 
   const handleNext = () => {
+    if (isLastStep) {
+      onDismiss();
+      return;
+    }
     setStepIndex((prev) => prev + 1);
   };
 
   const handleModalHide = () => {
     setStepIndex(0);
   };
-
-  const goToAccount = () => {
-    onDismiss();
-    router.push("/profile/user-info");
-  };
-
-  if (isAccountStep) {
-    return (
-      <Modal
-        visible={visible}
-        animationType="fade"
-        transparent={false}
-        onRequestClose={onDismiss}
-        onDismiss={handleModalHide}
-      >
-        <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-          <View style={styles.header}>
-            <Pressable onPress={onDismiss} hitSlop={12}>
-              <Text style={styles.skipText}>Kasnije</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.content}>
-            <View style={styles.iconWrap}>
-              <Ionicons name="person-add-outline" size={48} color={NeoTheme.colors.lime} />
-            </View>
-            <Text style={styles.title}>Napravi ili poveži nalog</Text>
-            <Text style={styles.body}>
-              7 dana probnog perioda ti radi odmah, bez naloga. Ali da ne bi izgubio signale i
-              obaveštenja ako promeniš telefon, preporučujemo da odmah napraviš nalog (ili se
-              povežeš ako ga već imaš) — treba i za kasniju kupovinu paketa.
-            </Text>
-          </View>
-
-          <View style={styles.footer}>
-            <Pressable
-              style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
-              onPress={goToAccount}
-            >
-              <Text style={styles.nextBtnText}>Imam nalog / Napravi nalog</Text>
-            </Pressable>
-            <Pressable onPress={onDismiss} hitSlop={12} style={styles.laterBtn}>
-              <Text style={styles.laterBtnText}>Probaj prvo bez naloga</Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    );
-  }
 
   if (!step) return null;
 

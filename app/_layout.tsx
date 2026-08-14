@@ -4,6 +4,7 @@ import {
   ChakraPetch_600SemiBold,
   ChakraPetch_700Bold,
 } from "@expo-google-fonts/chakra-petch";
+import { AuthGate } from "@/components/auth-gate";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { PaywallGate } from "@/components/paywall-gate";
@@ -23,7 +24,7 @@ import * as Notifications from "expo-notifications";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { PurchasesPackage } from "react-native-purchases";
 import "react-native-reanimated";
 
@@ -80,8 +81,14 @@ function RootLayoutContent() {
   // Device and profile for paywall gate
   const pathname = usePathname();
   const router = useRouter();
-  const { deviceId, loading: deviceLoading } = useDevice();
-  const { profile, refresh: refreshProfile, redeemBronzeCode } = useAccountProfile(deviceId);
+  const { deviceId, loading: deviceLoading, linkAccountToDevice } = useDevice();
+  const {
+    profile,
+    initialized: profileInitialized,
+    error: profileError,
+    refresh: refreshProfile,
+    redeemBronzeCode,
+  } = useAccountProfile(deviceId);
   const { offerings, purchasing, purchasePackage, restorePurchases, error: purchaseError, getManagementURL } = useSubscription(profile?.user?.id);
   const managementUrl = getManagementURL();
   const [syncingEntitlement, setSyncingEntitlement] = useState(false);
@@ -162,7 +169,7 @@ function RootLayoutContent() {
     return null;
   }
 
-  if (deviceLoading) {
+  if (deviceLoading || !profileInitialized) {
     return (
       <View style={appLoadingStyles.container}>
         <Image
@@ -171,6 +178,43 @@ function RootLayoutContent() {
         />
         <ActivityIndicator color={NeoTheme.colors.lime} size="large" style={{ marginTop: 24 }} />
       </View>
+    );
+  }
+
+  // Profil se ucitao, ali fetch nije uspeo (mreza/backend nedostupan) - ne znamo
+  // da li nalog postoji ili ne, pa NE prikazujemo AuthGate (bio bi lazan zahtev
+  // za ponovnu registraciju vec povezanom korisniku). Nudimo samo retry.
+  if (!profile && profileError) {
+    return (
+      <View style={appLoadingStyles.container}>
+        <Image
+          source={require("@/assets/images/icon.png")}
+          style={appLoadingStyles.logo}
+        />
+        <Text style={appLoadingStyles.errorText}>
+          Ne mozemo da ucitamo profil. Proveri internet konekciju.
+        </Text>
+        <Pressable style={appLoadingStyles.retryBtn} onPress={() => refreshProfile()}>
+          <Text style={appLoadingStyles.retryBtnText}>Pokusaj ponovo</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // Nalog je obavezan pre bilo kakvog pristupa aplikaciji - dok se uredjaj ne
+  // poveze sa nalogom (profile.user), ne renderujemo Stack/PaywallGate uopste,
+  // samo AuthGate. Nema "preskoci"/anonimni put ka tabovima.
+  if (!profile?.user) {
+    return (
+      <ThemeProvider value={appTheme}>
+        <AuthGate
+          onSubmit={async (account) => {
+            await linkAccountToDevice(account);
+            await refreshProfile();
+          }}
+        />
+        <StatusBar style="light" />
+      </ThemeProvider>
     );
   }
 
@@ -299,5 +343,27 @@ const appLoadingStyles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 24,
+  },
+  errorText: {
+    marginTop: 20,
+    marginHorizontal: 32,
+    textAlign: "center",
+    color: NeoTheme.colors.textMuted,
+    fontFamily: NeoTheme.fonts.medium,
+    fontSize: 14,
+  },
+  retryBtn: {
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 24,
+    borderRadius: NeoTheme.radius.sm,
+    backgroundColor: NeoTheme.colors.lime,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryBtnText: {
+    color: NeoTheme.colors.black,
+    fontFamily: NeoTheme.fonts.bold,
+    fontSize: 14,
   },
 });

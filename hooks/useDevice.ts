@@ -112,7 +112,13 @@ export function useDeviceState() {
           : {}),
       };
 
-      console.log("[useDevice] register payload", payload);
+      if (__DEV__) {
+        // Never log the raw payload - it can carry the user's plaintext password.
+        console.log("[useDevice] register payload", {
+          ...payload,
+          password: payload.password ? "[redacted]" : undefined,
+        });
+      }
 
       const res = await fetch(`${API_URL}/devices`, {
         method: "POST",
