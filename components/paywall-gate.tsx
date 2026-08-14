@@ -22,11 +22,7 @@ type PlanOption = {
   pkg: PurchasesPackage | null;
 };
 
-const PLAN_ACCENT: Record<PlanOption["tier"], string> = {
-  BRONZE: "#CD7F32",
-  SILVER: "#BFC5CE",
-  GOLD: "#F0C419",
-};
+const PLAN_ACCENT = NeoTheme.colors.planAccent;
 
 type Props = {
   children: ReactNode;
