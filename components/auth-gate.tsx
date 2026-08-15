@@ -24,22 +24,36 @@ type Props = {
   }) => Promise<void>;
 };
 
+type Mode = "login" | "register";
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Mandatory registration/login screen. Rendered in place of the whole app
- * (no children prop, no skip button) until the device has a linked account -
- * see app/_layout.tsx. The same form doubles as "login": if the email
- * already has an account, the backend verifies the password and links this
- * device to it instead of creating a new user.
+ * Mandatory login/registration gate. Rendered in place of the whole app (no
+ * children prop, no skip button) until the device has a linked account - see
+ * app/_layout.tsx. Two modes toggled internally (not a separate router route,
+ * since this renders before any navigable stack exists):
+ * - "login": email+password only, backend verifies against an existing
+ *   account and links this device to it.
+ * - "register": full ime/prezime/email/password, creates a new account.
+ * Both submit to the same onSubmit -> POST /devices - the backend tells them
+ * apart by whether the email already has an account.
  */
 export function AuthGate({ onSubmit }: Props) {
+  const [mode, setMode] = useState<Mode>("register");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isLogin = mode === "login";
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -48,8 +62,13 @@ export function AuthGate({ onSubmit }: Props) {
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim().toLowerCase();
 
-    if (!trimmedFirstName || !trimmedLastName || !trimmedEmail || !password) {
-      setError("Ime, prezime, email i lozinka su obavezni.");
+    if (!trimmedEmail || !password) {
+      setError("Email i lozinka su obavezni.");
+      return;
+    }
+
+    if (!isLogin && (!trimmedFirstName || !trimmedLastName)) {
+      setError("Ime i prezime su obavezni.");
       return;
     }
 
@@ -66,13 +85,19 @@ export function AuthGate({ onSubmit }: Props) {
     setSubmitting(true);
     try {
       await onSubmit({
-        firstName: trimmedFirstName,
-        lastName: trimmedLastName,
+        firstName: isLogin ? "" : trimmedFirstName,
+        lastName: isLogin ? "" : trimmedLastName,
         email: trimmedEmail,
         password,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Registracija nije uspela. Pokusaj ponovo.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : isLogin
+            ? "Prijava nije uspela. Pokusaj ponovo."
+            : "Registracija nije uspela. Pokusaj ponovo.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -95,38 +120,67 @@ export function AuthGate({ onSubmit }: Props) {
           </View>
 
           <View style={styles.iconWrap}>
-            <Ionicons name="person-add-outline" size={40} color={NeoTheme.colors.lime} />
+            <Ionicons
+              name={isLogin ? "log-in-outline" : "person-add-outline"}
+              size={40}
+              color={NeoTheme.colors.lime}
+            />
           </View>
 
-          <Text style={styles.title}>Napravi nalog da nastavis</Text>
+          <Text style={styles.title}>{isLogin ? "Prijavi se" : "Napravi nalog"}</Text>
           <Text style={styles.subtitle}>
-            Nalog je obavezan za koriscenje aplikacije. Ako vec imas nalog, uneti isti email i
-            lozinku - povezacemo ovaj uredjaj sa tvojim postojecim nalogom.
+            {isLogin
+              ? "Nalog je obavezan za koriscenje aplikacije. Unesi email i lozinku sa kojima si se ranije registrovao."
+              : "Nalog je obavezan za koriscenje aplikacije."}
           </Text>
 
+          {/* Login / Register toggle */}
+          <View style={styles.tabRow}>
+            <Pressable
+              onPress={() => switchMode("login")}
+              style={[styles.tabBtn, isLogin && styles.tabBtnActive]}
+            >
+              <Text style={[styles.tabBtnText, isLogin && styles.tabBtnTextActive]}>
+                Prijavi se
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => switchMode("register")}
+              style={[styles.tabBtn, !isLogin && styles.tabBtnActive]}
+            >
+              <Text style={[styles.tabBtnText, !isLogin && styles.tabBtnTextActive]}>
+                Registruj se
+              </Text>
+            </Pressable>
+          </View>
+
           <View style={styles.card}>
-            <Text style={styles.label}>Ime</Text>
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              style={styles.input}
-              placeholder="Ime"
-              placeholderTextColor={NeoTheme.colors.textDim}
-              autoCapitalize="words"
-              autoComplete="given-name"
-              editable={!submitting}
-            />
-            <Text style={styles.label}>Prezime</Text>
-            <TextInput
-              value={lastName}
-              onChangeText={setLastName}
-              style={styles.input}
-              placeholder="Prezime"
-              placeholderTextColor={NeoTheme.colors.textDim}
-              autoCapitalize="words"
-              autoComplete="family-name"
-              editable={!submitting}
-            />
+            {!isLogin && (
+              <>
+                <Text style={styles.label}>Ime</Text>
+                <TextInput
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  style={styles.input}
+                  placeholder="Ime"
+                  placeholderTextColor={NeoTheme.colors.textDim}
+                  autoCapitalize="words"
+                  autoComplete="given-name"
+                  editable={!submitting}
+                />
+                <Text style={styles.label}>Prezime</Text>
+                <TextInput
+                  value={lastName}
+                  onChangeText={setLastName}
+                  style={styles.input}
+                  placeholder="Prezime"
+                  placeholderTextColor={NeoTheme.colors.textDim}
+                  autoCapitalize="words"
+                  autoComplete="family-name"
+                  editable={!submitting}
+                />
+              </>
+            )}
             <Text style={styles.label}>Email</Text>
             <TextInput
               value={email}
@@ -145,7 +199,7 @@ export function AuthGate({ onSubmit }: Props) {
               value={password}
               onChangeText={setPassword}
               style={styles.input}
-              placeholder="Lozinka (min. 6 karaktera)"
+              placeholder={isLogin ? "Lozinka" : "Lozinka (min. 6 karaktera)"}
               placeholderTextColor={NeoTheme.colors.textDim}
               secureTextEntry
               autoComplete="password"
@@ -168,13 +222,27 @@ export function AuthGate({ onSubmit }: Props) {
               {submitting ? (
                 <ActivityIndicator color={NeoTheme.colors.black} />
               ) : (
-                <Text style={styles.submitBtnText}>Napravi nalog / Prijavi se</Text>
+                <Text style={styles.submitBtnText}>
+                  {isLogin ? "Prijavi se" : "Napravi nalog"}
+                </Text>
               )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => switchMode(isLogin ? "register" : "login")}
+              disabled={submitting}
+              style={styles.switchLink}
+            >
+              <Text style={styles.switchLinkText}>
+                {isLogin ? "Nemas nalog? Registruj se" : "Vec imas nalog? Prijavi se"}
+              </Text>
             </Pressable>
           </View>
 
           <Text style={styles.footnote}>
-            Kreiranjem naloga prihvatas Uslove koriscenja i Politiku privatnosti.
+            {isLogin
+              ? "Prijavom prihvatas Uslove koriscenja i Politiku privatnosti."
+              : "Kreiranjem naloga prihvatas Uslove koriscenja i Politiku privatnosti."}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -239,6 +307,34 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: NeoTheme.spacing.xs,
   },
+  tabRow: {
+    flexDirection: "row",
+    width: "100%",
+    borderRadius: NeoTheme.radius.sm,
+    backgroundColor: NeoTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.border,
+    padding: 4,
+    marginTop: NeoTheme.spacing.xs,
+  },
+  tabBtn: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: NeoTheme.radius.sm - 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabBtnActive: {
+    backgroundColor: NeoTheme.colors.lime,
+  },
+  tabBtnText: {
+    fontFamily: NeoTheme.fonts.bold,
+    fontSize: 13,
+    color: NeoTheme.colors.textMuted,
+  },
+  tabBtnTextActive: {
+    color: NeoTheme.colors.black,
+  },
   card: {
     width: "100%",
     borderRadius: NeoTheme.radius.md,
@@ -277,6 +373,17 @@ const styles = StyleSheet.create({
     color: NeoTheme.colors.black,
     fontFamily: NeoTheme.fonts.bold,
     fontSize: 15,
+  },
+  switchLink: {
+    marginTop: NeoTheme.spacing.sm,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  switchLinkText: {
+    color: NeoTheme.colors.lime,
+    fontFamily: NeoTheme.fonts.medium,
+    fontSize: 13,
   },
   disabled: {
     opacity: 0.6,
