@@ -33,7 +33,7 @@ export default function ProfileMenuScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
-        <AppHeader rightLabel="Profil" leftIcon="chevron-back" onLeftPress={() => router.back()} />
+        <AppHeader rightLabel="Podešavanja" leftIcon="chevron-back" onLeftPress={() => router.back()} />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           {MENU_ITEMS.map((item) => (

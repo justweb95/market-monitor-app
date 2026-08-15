@@ -90,7 +90,7 @@ export function AuthGate({ onSubmit }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.brandRow}>
-            <Image source={require("@/assets/images/icon.png")} style={styles.logo} />
+            <Image source={require("@/assets/images/logo.png")} style={styles.logo} />
             <Text style={styles.brand}>Lovac na Oglase</Text>
           </View>
 

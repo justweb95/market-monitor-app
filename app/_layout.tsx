@@ -173,7 +173,7 @@ function RootLayoutContent() {
     return (
       <View style={appLoadingStyles.container}>
         <Image
-          source={require("@/assets/images/icon.png")}
+          source={require("@/assets/images/logo.png")}
           style={appLoadingStyles.logo}
         />
         <ActivityIndicator color={NeoTheme.colors.lime} size="large" style={{ marginTop: 24 }} />
@@ -188,7 +188,7 @@ function RootLayoutContent() {
     return (
       <View style={appLoadingStyles.container}>
         <Image
-          source={require("@/assets/images/icon.png")}
+          source={require("@/assets/images/logo.png")}
           style={appLoadingStyles.logo}
         />
         <Text style={appLoadingStyles.errorText}>
