@@ -16,13 +16,13 @@ export const NeoTheme = {
     black: "#000000",
     danger: "#FF6767",
     dangerSoft: "rgba(255,103,103,0.18)",
-  },
-  // Plan-tier accent colors - shared by paywall-gate.tsx and profile/plan.tsx
-  // so the two screens can't drift apart on what "Bronze/Silver/Gold" look like.
-  planAccent: {
-    BRONZE: "#CD7F32",
-    SILVER: "#BFC5CE",
-    GOLD: "#F0C419",
+    // Plan-tier accent colors - shared by paywall-gate.tsx and profile/plan.tsx
+    // so the two screens can't drift apart on what "Bronze/Silver/Gold" look like.
+    planAccent: {
+      BRONZE: "#CD7F32",
+      SILVER: "#BFC5CE",
+      GOLD: "#F0C419",
+    },
   },
   radius: {
     xs: 2,
