@@ -33,6 +33,17 @@ const STEPS: Step[] = [
   },
 ];
 
+// Poslednji ekran, posle tutorijala - iskreno objašnjenje probnog perioda i
+// naplate. Namerno odvojen od STEPS (nema "Preskoči", nema tačkice, samo jedno
+// dugme) - ovo nije deo objašnjenja kako app radi, već bitno obaveštenje koje
+// korisnik treba svesno da potvrdi pre nego što uđe u app.
+const TRIAL_NOTICE = {
+  icon: "wallet-outline" as const,
+  title: "Pre nego što počneš",
+  body:
+    "Prvih 7 dana su potpuno besplatna - probaj sve bez ograničenja. Da budemo iskreni: posle toga uvodimo mesečnu pretplatu, jer server, hosting, domen, AI, dizajn i marketing (Instagram, Facebook) - sve to nas nešto košta svakog meseca. Pretplata je jedini način da aplikacija ostane u pogonu i da je dalje unapređujemo.",
+};
+
 type Props = {
   visible: boolean;
   onDismiss: () => void;
@@ -40,13 +51,14 @@ type Props = {
 
 export function OnboardingModal({ visible, onDismiss }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
+  const [showTrialNotice, setShowTrialNotice] = useState(false);
 
   const isLastStep = stepIndex === STEPS.length - 1;
   const step = STEPS[stepIndex];
 
   const handleNext = () => {
     if (isLastStep) {
-      onDismiss();
+      setShowTrialNotice(true);
       return;
     }
     setStepIndex((prev) => prev + 1);
@@ -54,6 +66,7 @@ export function OnboardingModal({ visible, onDismiss }: Props) {
 
   const handleModalHide = () => {
     setStepIndex(0);
+    setShowTrialNotice(false);
   };
 
   if (!step) return null;
@@ -63,39 +76,55 @@ export function OnboardingModal({ visible, onDismiss }: Props) {
       visible={visible}
       animationType="fade"
       transparent={false}
-      onRequestClose={onDismiss}
+      onRequestClose={showTrialNotice ? () => {} : onDismiss}
       onDismiss={handleModalHide}
     >
       <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
         <View style={styles.header}>
-          <Pressable onPress={onDismiss} hitSlop={12}>
-            <Text style={styles.skipText}>Preskoči</Text>
-          </Pressable>
+          {!showTrialNotice ? (
+            <Pressable onPress={onDismiss} hitSlop={12}>
+              <Text style={styles.skipText}>Preskoči</Text>
+            </Pressable>
+          ) : null}
         </View>
 
-        <View style={styles.content}>
-          <View style={styles.iconWrap}>
-            <Ionicons name={step.icon} size={48} color={NeoTheme.colors.lime} />
+        {showTrialNotice ? (
+          <View style={styles.content}>
+            <View style={styles.iconWrap}>
+              <Ionicons name={TRIAL_NOTICE.icon} size={48} color={NeoTheme.colors.lime} />
+            </View>
+            <Text style={styles.title}>{TRIAL_NOTICE.title}</Text>
+            <Text style={styles.body}>{TRIAL_NOTICE.body}</Text>
           </View>
-          <Text style={styles.title}>{step.title}</Text>
-          <Text style={styles.body}>{step.body}</Text>
-        </View>
+        ) : (
+          <View style={styles.content}>
+            <View style={styles.iconWrap}>
+              <Ionicons name={step.icon} size={48} color={NeoTheme.colors.lime} />
+            </View>
+            <Text style={styles.title}>{step.title}</Text>
+            <Text style={styles.body}>{step.body}</Text>
+          </View>
+        )}
 
         <View style={styles.footer}>
-          <View style={styles.dotsRow}>
-            {STEPS.map((s, index) => (
-              <View
-                key={s.title}
-                style={[styles.dot, index === stepIndex && styles.dotActive]}
-              />
-            ))}
-          </View>
+          {!showTrialNotice ? (
+            <View style={styles.dotsRow}>
+              {STEPS.map((s, index) => (
+                <View
+                  key={s.title}
+                  style={[styles.dot, index === stepIndex && styles.dotActive]}
+                />
+              ))}
+            </View>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
-            onPress={handleNext}
+            onPress={showTrialNotice ? onDismiss : handleNext}
           >
-            <Text style={styles.nextBtnText}>{isLastStep ? "Nastavi" : "Dalje"}</Text>
+            <Text style={styles.nextBtnText}>
+              {showTrialNotice ? "OK, razumem" : isLastStep ? "Nastavi" : "Dalje"}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
