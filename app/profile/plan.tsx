@@ -126,7 +126,7 @@ export default function PlanScreen() {
   );
 
   const hasCancelledAccess = useMemo(() => {
-    if (profile?.subscription?.status !== "CANCELLED" || !profile.subscription?.renewsAt) {
+    if (profile?.subscription?.status !== "CANCELLED" || !profile?.subscription?.renewsAt) {
       return false;
     }
 
@@ -469,7 +469,7 @@ export default function PlanScreen() {
                           <ActivityIndicator color={NeoTheme.colors.black} />
                         ) : (
                           <Text style={styles.buyBtnText}>
-                            Kupi {activePkg?.product.priceString ?? (activePlan.priceEur ? `${activePlan.priceEur}€` : "")}
+                            Kupi {activePkg?.product.priceString ?? (activePlan.priceEur ? `${activePlan.priceEur}€` : "")} / mesečno
                           </Text>
                         )}
                       </Pressable>
