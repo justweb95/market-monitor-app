@@ -21,7 +21,7 @@ function ensureConfigured() {
   rcConfigured = true;
 }
 
-function toSerbianError(e: unknown): string {
+function toSerbianError(e: unknown, fallback = "Kupovina nije uspela. Pokušaj ponovo."): string {
   if (e && typeof e === "object" && "code" in e) {
     const code = (e as { code: unknown }).code;
     if (code === PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR)
@@ -35,7 +35,7 @@ function toSerbianError(e: unknown): string {
     if (code === PURCHASES_ERROR_CODE.INSUFFICIENT_PERMISSIONS_ERROR)
       return "Nedovoljne dozvole. Proveri Google Play nalog.";
   }
-  return "Kupovina nije uspela. Pokušaj ponovo.";
+  return fallback;
 }
 
 export type SubscriptionState = {
@@ -102,7 +102,7 @@ export function useSubscription(userId?: string) {
           setState((s) => ({
             ...s,
             loading: false,
-            error: e instanceof Error ? e.message : "Greska pri ucitavanju planova",
+            error: toSerbianError(e, "Greška pri učitavanju planova. Pokušaj ponovo."),
           }));
         }
       }
@@ -177,7 +177,7 @@ export function useSubscription(userId?: string) {
       setState((s) => ({
         ...s,
         purchasing: false,
-        error: e instanceof Error ? e.message : "Obnova kupovine nije uspela",
+        error: toSerbianError(e, "Obnova kupovine nije uspela. Pokušaj ponovo."),
       }));
       return false;
     }

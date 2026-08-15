@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { API_URL } from "@/constants/api";
+import { parseApiErrorMessage } from "@/constants/apiError";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
@@ -380,7 +381,9 @@ export default function AlertsScreen() {
     try {
       const res = await fetch(`${API_URL}/alerts/${id}/toggle`, { method: "PATCH" });
       if (!res.ok) {
-        throw new Error(`Promena statusa nije uspela (${res.status}): ${await res.text()}`);
+        throw new Error(
+          await parseApiErrorMessage(res, "Promena statusa nije uspela. Pokušaj ponovo."),
+        );
       }
       const updated = await res.json();
       setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
@@ -401,7 +404,9 @@ export default function AlertsScreen() {
           try {
             const res = await fetch(`${API_URL}/alerts/${id}`, { method: "DELETE" });
             if (!res.ok) {
-              throw new Error(`Brisanje nije uspelo (${res.status}): ${await res.text()}`);
+              throw new Error(
+                await parseApiErrorMessage(res, "Brisanje nije uspelo. Pokušaj ponovo."),
+              );
             }
             setItems((prev) => prev.filter((item) => item.id !== id));
             void refreshProfile();
@@ -525,7 +530,7 @@ export default function AlertsScreen() {
       });
 
       if (!res.ok) {
-        throw new Error(`Cuvanje nije uspelo (${res.status}): ${await res.text()}`);
+        throw new Error(await parseApiErrorMessage(res, "Čuvanje nije uspelo. Pokušaj ponovo."));
       }
 
       const newAlert = await res.json();

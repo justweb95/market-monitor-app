@@ -1,4 +1,5 @@
 import { API_URL } from "@/constants/api";
+import { parseApiErrorMessage } from "@/constants/apiError";
 import { useCallback, useEffect, useState } from "react";
 
 export type PlanTier = "FREE" | "BRONZE" | "SILVER" | "GOLD";
@@ -100,7 +101,9 @@ export function useAccountProfile(deviceId: string | null) {
     try {
       const res = await fetch(`${API_URL}/profile/${deviceId}`);
       if (!res.ok) {
-        throw new Error(`Profil nije dostupan (${res.status})`);
+        throw new Error(
+          await parseApiErrorMessage(res, "Profil trenutno nije dostupan. Pokušaj ponovo."),
+        );
       }
       const data = (await res.json()) as AccountProfile;
       store.profile = data;
@@ -131,7 +134,9 @@ export function useAccountProfile(deviceId: string | null) {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        throw new Error(`Snimanje profila nije uspelo (${res.status}): ${await res.text()}`);
+        throw new Error(
+          await parseApiErrorMessage(res, "Snimanje profila nije uspelo. Pokušaj ponovo."),
+        );
       }
       const data = (await res.json()) as AccountProfile;
       store.profile = data;
@@ -157,7 +162,9 @@ export function useAccountProfile(deviceId: string | null) {
       });
 
       if (!res.ok) {
-        throw new Error(`Kod nije prihvacen (${res.status}): ${await res.text()}`);
+        throw new Error(
+          await parseApiErrorMessage(res, "Kod nije prihvaćen. Proveri i pokušaj ponovo."),
+        );
       }
 
       const data = (await res.json()) as AccountProfile;
@@ -184,7 +191,9 @@ export function useAccountProfile(deviceId: string | null) {
       });
 
       if (!res.ok) {
-        throw new Error(`Otkazivanje nije uspelo (${res.status}): ${await res.text()}`);
+        throw new Error(
+          await parseApiErrorMessage(res, "Otkazivanje nije uspelo. Pokušaj ponovo."),
+        );
       }
 
       const data = (await res.json()) as AccountProfile;
