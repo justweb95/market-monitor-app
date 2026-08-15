@@ -1,6 +1,12 @@
+import { GOOGLE_WEB_CLIENT_ID } from "@/constants/env";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useState } from "react";
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -16,12 +22,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = {
-  onSubmit: (account: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  }) => Promise<void>;
+  onSubmit: (
+    account:
+      | {
+          firstName: string;
+          lastName: string;
+          email: string;
+          password: string;
+        }
+      | { googleIdToken: string },
+  ) => Promise<void>;
 };
 
 type Mode = "login" | "register";
@@ -46,13 +56,58 @@ export function AuthGate({ onSubmit }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isLogin = mode === "login";
+  const anySubmitting = submitting || googleSubmitting;
+
+  useEffect(() => {
+    if (!GOOGLE_WEB_CLIENT_ID) return;
+    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+  }, []);
 
   const switchMode = (next: Mode) => {
     setMode(next);
     setError(null);
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!GOOGLE_WEB_CLIENT_ID) {
+      setError("Google prijava trenutno nije podesena.");
+      return;
+    }
+
+    setError(null);
+    setGoogleSubmitting(true);
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+
+      if (response.type === "cancelled") {
+        return;
+      }
+
+      const idToken = response.data.idToken;
+      if (!idToken) {
+        setError("Google nije vratio token. Pokusaj ponovo.");
+        return;
+      }
+
+      await onSubmit({ googleIdToken: idToken });
+    } catch (e) {
+      if (isErrorWithCode(e) && e.code === statusCodes.IN_PROGRESS) {
+        // Vec je u toku - ne prikazuj gresku, samo sacekaj prethodni pokusaj.
+        return;
+      }
+      if (isErrorWithCode(e) && e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("Google Play Services nije dostupan na ovom uredjaju.");
+        return;
+      }
+      setError(e instanceof Error ? e.message : "Google prijava nije uspela. Pokusaj ponovo.");
+    } finally {
+      setGoogleSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -166,7 +221,7 @@ export function AuthGate({ onSubmit }: Props) {
                   placeholderTextColor={NeoTheme.colors.textDim}
                   autoCapitalize="words"
                   autoComplete="given-name"
-                  editable={!submitting}
+                  editable={!anySubmitting}
                 />
                 <Text style={styles.label}>Prezime</Text>
                 <TextInput
@@ -177,7 +232,7 @@ export function AuthGate({ onSubmit }: Props) {
                   placeholderTextColor={NeoTheme.colors.textDim}
                   autoCapitalize="words"
                   autoComplete="family-name"
-                  editable={!submitting}
+                  editable={!anySubmitting}
                 />
               </>
             )}
@@ -212,11 +267,11 @@ export function AuthGate({ onSubmit }: Props) {
 
             <Pressable
               onPress={handleSubmit}
-              disabled={submitting}
+              disabled={anySubmitting}
               style={({ pressed }) => [
                 styles.submitBtn,
                 pressed && styles.pressed,
-                submitting && styles.disabled,
+                anySubmitting && styles.disabled,
               ]}
             >
               {submitting ? (
@@ -228,9 +283,36 @@ export function AuthGate({ onSubmit }: Props) {
               )}
             </Pressable>
 
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ili</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              onPress={handleGoogleSignIn}
+              disabled={anySubmitting}
+              style={({ pressed }) => [
+                styles.googleBtn,
+                pressed && styles.pressed,
+                anySubmitting && styles.disabled,
+              ]}
+            >
+              {googleSubmitting ? (
+                <ActivityIndicator color={NeoTheme.colors.text} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={18} color={NeoTheme.colors.text} />
+                  <Text style={styles.googleBtnText}>
+                    {isLogin ? "Prijavi se sa Google" : "Registruj se sa Google"}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
             <Pressable
               onPress={() => switchMode(isLogin ? "register" : "login")}
-              disabled={submitting}
+              disabled={anySubmitting}
               style={styles.switchLink}
             >
               <Text style={styles.switchLinkText}>
@@ -373,6 +455,39 @@ const styles = StyleSheet.create({
     color: NeoTheme.colors.black,
     fontFamily: NeoTheme.fonts.bold,
     fontSize: 15,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: NeoTheme.spacing.sm,
+    marginTop: NeoTheme.spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: NeoTheme.colors.border,
+  },
+  dividerText: {
+    color: NeoTheme.colors.textDim,
+    fontFamily: NeoTheme.fonts.medium,
+    fontSize: 12,
+  },
+  googleBtn: {
+    marginTop: NeoTheme.spacing.md,
+    minHeight: 48,
+    borderRadius: NeoTheme.radius.sm,
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: NeoTheme.spacing.xs,
+  },
+  googleBtnText: {
+    color: NeoTheme.colors.text,
+    fontFamily: NeoTheme.fonts.bold,
+    fontSize: 14,
   },
   switchLink: {
     marginTop: NeoTheme.spacing.sm,

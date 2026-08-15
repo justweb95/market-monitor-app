@@ -10,3 +10,8 @@ export const PUSH_MODE: PushMode = rawPushMode === "off" ? "off" : "auto";
 
 export const REVENUECAT_IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? "";
 export const REVENUECAT_ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "";
+
+// Web Client ID iz Google Cloud Console — koristi ga @react-native-google-signin i na
+// Androidu (standardni obrazac te biblioteke), ne samo web. Nije tajna — namenjen je
+// da bude ugradjen u klijentski kod.
+export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";

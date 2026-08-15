@@ -47,12 +47,13 @@
           "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-           "backgroundColor": "#161616",
+          "backgroundColor": "#161616",
           "dark": {
             "backgroundColor": "#161616"
           }
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

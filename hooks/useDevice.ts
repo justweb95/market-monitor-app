@@ -18,12 +18,14 @@ const INVALID_DEVICE_IDS = new Set([
 
 type NotificationMode = "disabled" | "mock" | "remote";
 
-type AccountRegistration = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-};
+type AccountRegistration =
+  | {
+      firstName: string;
+      lastName: string;
+      email: string;
+      password: string;
+    }
+  | { googleIdToken: string };
 
 function getNotificationMode(
   pushSupported: boolean,
@@ -112,21 +114,24 @@ export function useDeviceState() {
             ? pushToken
             : await getOrCreateMockPushToken(),
         ...(account
-          ? {
-              firstName: account.firstName.trim(),
-              lastName: account.lastName.trim(),
-              email: account.email.trim().toLowerCase(),
-              password: account.password,
-            }
+          ? "googleIdToken" in account
+            ? { googleIdToken: account.googleIdToken }
+            : {
+                firstName: account.firstName.trim(),
+                lastName: account.lastName.trim(),
+                email: account.email.trim().toLowerCase(),
+                password: account.password,
+              }
           : {}),
       };
 
       if (__DEV__) {
-        // Never log the raw payload - it can carry the user's plaintext password.
-        console.log("[useDevice] register payload", {
-          ...payload,
-          password: payload.password ? "[redacted]" : undefined,
-        });
+        // Never log the raw payload - it can carry the user's plaintext password
+        // or a Google bearer token.
+        const safePayload: Record<string, unknown> = { ...payload };
+        if ("password" in safePayload) safePayload.password = "[redacted]";
+        if ("googleIdToken" in safePayload) safePayload.googleIdToken = "[redacted]";
+        console.log("[useDevice] register payload", safePayload);
       }
 
       const res = await fetch(`${API_URL}/devices`, {
