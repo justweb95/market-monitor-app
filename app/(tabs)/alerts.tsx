@@ -1,4 +1,6 @@
 import { AppHeader } from "@/components/app-header";
+import { SerbiaRegionMap } from "@/components/serbia-region-map";
+import { SERBIA_REGIONS, type RegionCode } from "@/constants/serbia-map";
 import { API_URL } from "@/constants/api";
 import { parseApiErrorMessage } from "@/constants/apiError";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
@@ -51,6 +53,7 @@ type AlertItem = {
   fuelTypes?: string[];
   bodyTypes?: string[];
   motoTypes?: string[];
+  regions?: RegionCode[];
   ccmFrom?: number | null;
   ccmTo?: number | null;
   isActive: boolean;
@@ -76,21 +79,6 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { value: "BICIKLI", label: "Bicikli" },
   { value: "NEKRETNINE", label: "Nekretnine" },
   { value: "SVE", label: "Sve kategorije" },
-];
-
-const LOCATION_OPTIONS = [
-  "Svi regioni",
-  "Beograd",
-  "Novi Sad",
-  "Nis",
-  "Kragujevac",
-  "Subotica",
-  "Novi Pazar",
-  "Cacak",
-  "Kraljevo",
-  "Zrenjanin",
-  "Pancevo",
-  "Smederevo",
 ];
 
 // Vrsta goriva i tip karoserije - vrednosti moraju da odgovaraju backend-u
@@ -348,7 +336,6 @@ export default function AlertsScreen() {
   const [productName, setProductName] = useState("");
   const [priceText, setPriceText] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [locationText, setLocationText] = useState(LOCATION_OPTIONS[0] ?? "Svi regioni");
   const [yearFromText, setYearFromText] = useState("");
   const [yearToText, setYearToText] = useState("");
   const [kmFromText, setKmFromText] = useState("");
@@ -357,6 +344,7 @@ export default function AlertsScreen() {
   const [fuelTypes, setFuelTypes] = useState<string[]>([]);
   const [bodyTypes, setBodyTypes] = useState<string[]>([]);
   const [motoTypes, setMotoTypes] = useState<string[]>([]);
+  const [regions, setRegions] = useState<RegionCode[]>([]);
   const [ccmFromText, setCcmFromText] = useState("");
   const [ccmToText, setCcmToText] = useState("");
   // Kad je postavljen, forma radi u rezimu izmene postojeceg signala (PATCH),
@@ -430,7 +418,6 @@ export default function AlertsScreen() {
     setCategory(null);
     setProductName("");
     setPriceText("");
-    setLocationText(LOCATION_OPTIONS[0] ?? "Svi regioni");
     setShowAdvanced(false);
     setYearFromText("");
     setYearToText("");
@@ -440,6 +427,7 @@ export default function AlertsScreen() {
     setFuelTypes([]);
     setBodyTypes([]);
     setMotoTypes([]);
+    setRegions([]);
     setCcmFromText("");
     setCcmToText("");
     setEditingId(null);
@@ -455,11 +443,11 @@ export default function AlertsScreen() {
     setPriceText(
       typeof item.priceMax === "number" && item.priceMax > 0 ? String(item.priceMax) : "",
     );
-    setLocationText(item.locationText || (LOCATION_OPTIONS[0] ?? "Svi regioni"));
     setPropertyType(item.propertyType ?? null);
     setFuelTypes(item.fuelTypes ?? []);
     setBodyTypes(item.bodyTypes ?? []);
     setMotoTypes(item.motoTypes ?? []);
+    setRegions(item.regions ?? []);
     setCcmFromText(item.ccmFrom != null ? String(item.ccmFrom) : "");
     setCcmToText(item.ccmTo != null ? String(item.ccmTo) : "");
     setYearFromText(item.yearFrom != null ? String(item.yearFrom) : "");
@@ -475,6 +463,7 @@ export default function AlertsScreen() {
         (item.fuelTypes?.length ?? 0) > 0 ||
         (item.bodyTypes?.length ?? 0) > 0 ||
         (item.motoTypes?.length ?? 0) > 0 ||
+        (item.regions?.length ?? 0) > 0 ||
         item.ccmFrom != null ||
         item.ccmTo != null,
     );
@@ -553,6 +542,12 @@ export default function AlertsScreen() {
 
   const toggleInList = (value: string, list: string[]): string[] =>
     list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+
+  const toggleRegion = useCallback((code: RegionCode) => {
+    setRegions((prev) =>
+      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code],
+    );
+  }, []);
 
   const yearFromNum = yearFromText.trim() ? Number(yearFromText) : null;
   const yearToNum = yearToText.trim() ? Number(yearToText) : null;
@@ -644,7 +639,8 @@ export default function AlertsScreen() {
         category,
         keywords: productName.trim().split(/\s+/).filter(Boolean),
         priceMax: isAllCategory ? null : Math.round(priceNum),
-        locationText: locationText === "Svi regioni" ? "" : locationText,
+        locationText: "",
+        regions,
         propertyType: category === "NEKRETNINE" ? propertyType : null,
         yearFrom: showYearFilter ? yearFromNum : null,
         yearTo: showYearFilter ? yearToNum : null,
@@ -701,10 +697,10 @@ export default function AlertsScreen() {
     isYearRangeOk,
     kmFromNum,
     kmToNum,
-    locationText,
     propertyType,
     priceNum,
     primaryDisabled,
+    regions,
     productName,
     refreshProfile,
     resetForm,
@@ -981,29 +977,8 @@ export default function AlertsScreen() {
 
                         {showAdvanced && (
                           <View style={styles.advancedWrap}>
-                            <Text style={styles.label}>Lokacija (opciono)</Text>
-                            <View style={styles.inlinePickerRow}>
-                              {LOCATION_OPTIONS.map((loc) => (
-                                <Pressable
-                                  key={loc}
-                                  onPress={() => setLocationText(loc)}
-                                  style={({ pressed }) => [
-                                    styles.inlinePickerChip,
-                                    locationText === loc && styles.inlinePickerChipActive,
-                                    pressed && styles.pressed,
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.inlinePickerChipText,
-                                      locationText === loc && styles.inlinePickerChipTextActive,
-                                    ]}
-                                  >
-                                    {loc}
-                                  </Text>
-                                </Pressable>
-                              ))}
-                            </View>
+                            <Text style={styles.label}>Lokacija - regioni (opciono)</Text>
+                            <SerbiaRegionMap selected={regions} onToggle={toggleRegion} />
 
                             {showMotoFilters && (
                               <>
@@ -1266,9 +1241,18 @@ export default function AlertsScreen() {
                           : "Bez ogranicenja cene"}
                       </Text>
                     </View>
-                    {(item.locationText || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length || item.motoTypes?.length || item.ccmFrom || item.ccmTo) && (
+                    {(item.locationText || item.regions?.length || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length || item.motoTypes?.length || item.ccmFrom || item.ccmTo) && (
                       <Text style={styles.alertFiltersText}>
                         {[
+                          item.regions?.length
+                            ? `Regioni: ${item.regions
+                                .map(
+                                  (code) =>
+                                    SERBIA_REGIONS.find((region) => region.code === code)?.label ??
+                                    code,
+                                )
+                                .join(", ")}`
+                            : null,
                           item.locationText ? `Lokacija: ${item.locationText}` : null,
                           item.propertyType ? `Tip: ${item.propertyType}` : null,
                           item.yearFrom || item.yearTo
