@@ -356,7 +356,6 @@ export default function AlertsScreen() {
 
   const isWebPreview = Platform.OS === "web" && items.length === 0;
   const displayItems = isWebPreview ? [WEB_PREVIEW_ALERT] : items;
-  const totalCount = displayItems.length;
   const isDrugarskiActive = profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE;
   const alertLimit =
     profile?.alertLimit && profile.alertLimit > 0
@@ -365,7 +364,16 @@ export default function AlertsScreen() {
         ? 5
         : 0;
   const isPlanLocked = alertLimit === 0;
-  const maxReached = !isPlanLocked && items.length >= alertLimit;
+  // Limit plana se odnosi na UKLJUCENE signale. Pauzirani signal ne zauzima
+  // aktivno mesto - ostaje sacuvan "u rezervi" (do jos toliko komada), pa
+  // korisnik moze da pauzira jedan i odmah napravi/ukljuci drugi.
+  const draftLimit = profile?.draftLimit ?? alertLimit;
+  const totalAlertLimit = profile?.totalAlertLimit ?? alertLimit + draftLimit;
+  const activeCount = displayItems.filter((item) => item.isActive).length;
+  const activeLimitReached = !isPlanLocked && activeCount >= alertLimit;
+  const totalLimitReached = !isPlanLocked && items.length >= totalAlertLimit;
+  // Kad su sva aktivna mesta popunjena, nov signal se cuva kao nacrt (rezerva).
+  const savingAsDraft = activeLimitReached && !totalLimitReached && !editingId;
 
   const resetForm = useCallback(() => {
     setStep(0);
@@ -499,7 +507,9 @@ export default function AlertsScreen() {
       : step === 2 || (step === 1 && isAllCategory)
         ? editingId
           ? "Sacuvaj izmene"
-          : "Sacuvaj"
+          : savingAsDraft
+            ? "Sacuvaj u rezervu"
+            : "Sacuvaj"
         : "Sledece";
 
   const primaryDisabled =
@@ -556,6 +566,7 @@ export default function AlertsScreen() {
         yearTo: showYearFilter ? yearToNum : null,
         kmFrom: showKmFilter ? kmFromNum : null,
         kmTo: showKmFilter ? kmToNum : null,
+        isActive: !savingAsDraft,
       };
 
       const res = await fetch(`${API_URL}/alerts${editingId ? `/${editingId}` : ""}`, {
@@ -603,6 +614,7 @@ export default function AlertsScreen() {
     productName,
     refreshProfile,
     resetForm,
+    savingAsDraft,
     showKmFilter,
     showYearFilter,
     step,
@@ -649,7 +661,7 @@ export default function AlertsScreen() {
                 <AppHeader
                   rightLabel="Signali"
                   rightIcon="pulse"
-                  rightCount={`${profile?.signalCount ?? totalCount}/${alertLimit}`}
+                  rightCount={`${profile?.activeSignalCount ?? activeCount}/${alertLimit}`}
                 />
 
                 <LinearGradient
@@ -706,11 +718,14 @@ export default function AlertsScreen() {
                       Nadogradi plan na Profil ekranu da otkljucas signale.
                     </Text>
                   </View>
-                ) : maxReached && !editingId ? (
+                ) : totalLimitReached && !editingId ? (
                   <View style={styles.maxCard}>
-                    <Text style={styles.maxCardTitle}>Dosegnut limit od {alertLimit} signala</Text>
+                    <Text style={styles.maxCardTitle}>
+                      Dosegnut limit od {totalAlertLimit} signala
+                    </Text>
                     <Text style={styles.maxCardText}>
-                      Obrisi ili pauziraj postojeci signal pre dodavanja novog.
+                      Plan ti dozvoljava {alertLimit} ukljucenih i jos {draftLimit} sacuvanih
+                      u rezervi. Obrisi neki postojeci signal da bi dodao nov.
                     </Text>
                   </View>
                 ) : (
@@ -718,6 +733,16 @@ export default function AlertsScreen() {
                     <View style={styles.formTopRow}>
                       <Text style={styles.formTitle}>{editingId ? "Izmena signala" : "Novi signal"}</Text>
                     </View>
+
+                    {savingAsDraft && (
+                      <View style={styles.infoBoxInline}>
+                        <Ionicons name="bookmark-outline" size={16} color={NeoTheme.colors.lime} />
+                        <Text style={styles.infoTextInline}>
+                          Sva aktivna mesta su popunjena ({activeCount}/{alertLimit}). Ovaj signal
+                          se cuva u rezervi - ukljuci ga kad pauziras neki drugi.
+                        </Text>
+                      </View>
+                    )}
 
                     <View style={styles.stepTrack}>
                       {[0, 1, 2].map((stepIndex) => (
@@ -991,7 +1016,7 @@ export default function AlertsScreen() {
                 )}
 
                 <View style={styles.sectionRow}>
-                  <Text style={styles.sectionTitle}>Aktivni signali</Text>
+                  <Text style={styles.sectionTitle}>Moji signali</Text>
                 </View>
               </>
             }

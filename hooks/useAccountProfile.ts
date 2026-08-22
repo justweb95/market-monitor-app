@@ -24,8 +24,16 @@ export type AccountProfile = {
   deviceId: string;
   user: UserProfile | null;
   planTier: PlanTier;
+  /** Koliko signala sme istovremeno da bude UKLJUCENO (limit plana). */
   alertLimit: number;
+  /** Koliko signala sme da stoji u rezervi (pauzirano/nacrt) - isto kao alertLimit. */
+  draftLimit: number;
+  /** alertLimit + draftLimit - ukupno sacuvanih signala. */
+  totalAlertLimit: number;
+  /** Ukupno sacuvanih signala (aktivni + pauzirani). */
   signalCount: number;
+  /** Samo ukljuceni signali. */
+  activeSignalCount: number;
   pricingPlans: PricingPlan[];
   freeBronzeCode: string;
   // Trial + subscription
