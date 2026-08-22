@@ -50,6 +50,9 @@ type AlertItem = {
   kmTo?: number | null;
   fuelTypes?: string[];
   bodyTypes?: string[];
+  motoTypes?: string[];
+  ccmFrom?: number | null;
+  ccmTo?: number | null;
   isActive: boolean;
   isPreview?: boolean;
 };
@@ -112,6 +115,20 @@ const BODY_OPTIONS: { value: string; label: string }[] = [
   { value: "KOMBI", label: "Kombi" },
   { value: "PIKAP", label: "Pikap" },
 ];
+
+const MOTO_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "NAKED", label: "Naked" },
+  { value: "SPORT", label: "Sport" },
+  { value: "ENDURO", label: "Enduro / Cross" },
+  { value: "CHOPPER", label: "Chopper / Cruiser" },
+  { value: "TURING", label: "Turing" },
+  { value: "SKUTER", label: "Skuter" },
+  { value: "ATV", label: "ATV / Quad" },
+  { value: "KLASIK", label: "Klasik" },
+];
+
+/** Kategorije za koje ima smisla filtrirati tip motora i kubikazu. */
+const MOTO_FILTER_CATEGORIES = new Set<Category>(["MOTORI"]);
 
 /** Kategorije za koje ima smisla filtrirati gorivo i karoseriju. */
 const VEHICLE_FILTER_CATEGORIES = new Set<Category>(["AUTOMOBILI"]);
@@ -339,6 +356,9 @@ export default function AlertsScreen() {
   const [propertyType, setPropertyType] = useState<PropertyType | null>(null);
   const [fuelTypes, setFuelTypes] = useState<string[]>([]);
   const [bodyTypes, setBodyTypes] = useState<string[]>([]);
+  const [motoTypes, setMotoTypes] = useState<string[]>([]);
+  const [ccmFromText, setCcmFromText] = useState("");
+  const [ccmToText, setCcmToText] = useState("");
   // Kad je postavljen, forma radi u rezimu izmene postojeceg signala (PATCH),
   // a ne kreiranja novog (POST).
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -419,6 +439,9 @@ export default function AlertsScreen() {
     setPropertyType(null);
     setFuelTypes([]);
     setBodyTypes([]);
+    setMotoTypes([]);
+    setCcmFromText("");
+    setCcmToText("");
     setEditingId(null);
     setFormError(null);
   }, []);
@@ -436,6 +459,9 @@ export default function AlertsScreen() {
     setPropertyType(item.propertyType ?? null);
     setFuelTypes(item.fuelTypes ?? []);
     setBodyTypes(item.bodyTypes ?? []);
+    setMotoTypes(item.motoTypes ?? []);
+    setCcmFromText(item.ccmFrom != null ? String(item.ccmFrom) : "");
+    setCcmToText(item.ccmTo != null ? String(item.ccmTo) : "");
     setYearFromText(item.yearFrom != null ? String(item.yearFrom) : "");
     setYearToText(item.yearTo != null ? String(item.yearTo) : "");
     setKmFromText(item.kmFrom != null ? String(item.kmFrom) : "");
@@ -447,7 +473,10 @@ export default function AlertsScreen() {
         item.kmFrom != null ||
         item.kmTo != null ||
         (item.fuelTypes?.length ?? 0) > 0 ||
-        (item.bodyTypes?.length ?? 0) > 0,
+        (item.bodyTypes?.length ?? 0) > 0 ||
+        (item.motoTypes?.length ?? 0) > 0 ||
+        item.ccmFrom != null ||
+        item.ccmTo != null,
     );
     setStep(2);
     setFormError(null);
@@ -520,6 +549,7 @@ export default function AlertsScreen() {
   const showYearFilter = !!category && YEAR_FILTER_CATEGORIES.has(category);
   const showKmFilter = !!category && KM_FILTER_CATEGORIES.has(category);
   const showVehicleFilters = !!category && VEHICLE_FILTER_CATEGORIES.has(category);
+  const showMotoFilters = !!category && MOTO_FILTER_CATEGORIES.has(category);
 
   const toggleInList = (value: string, list: string[]): string[] =>
     list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
@@ -534,6 +564,15 @@ export default function AlertsScreen() {
     ((yearFromNum === null || Number.isFinite(yearFromNum)) &&
     (yearToNum === null || Number.isFinite(yearToNum)) &&
     (yearFromNum === null || yearToNum === null || yearFromNum <= yearToNum));
+
+  const ccmFromNum = ccmFromText.trim() ? Number(ccmFromText) : null;
+  const ccmToNum = ccmToText.trim() ? Number(ccmToText) : null;
+
+  const isCcmRangeOk =
+    !showMotoFilters ||
+    ((ccmFromNum === null || Number.isFinite(ccmFromNum)) &&
+      (ccmToNum === null || Number.isFinite(ccmToNum)) &&
+      (ccmFromNum === null || ccmToNum === null || ccmFromNum <= ccmToNum));
 
   const isKmRangeOk =
     !showKmFilter ||
@@ -556,7 +595,7 @@ export default function AlertsScreen() {
     savingAlert ||
     (step === 0 && !category) ||
     (step === 1 && !isNameOk) ||
-    (step === 2 && (!isPriceOk || !isPropertyOk || !isYearRangeOk || !isKmRangeOk));
+    (step === 2 && (!isPriceOk || !isPropertyOk || !isYearRangeOk || !isKmRangeOk || !isCcmRangeOk));
 
   const onPrimary = useCallback(async () => {
     if (primaryDisabled) return;
@@ -576,6 +615,11 @@ export default function AlertsScreen() {
 
     if (!isKmRangeOk) {
       setFormError("Raspon kilometraze nije validan.");
+      return;
+    }
+
+    if (!isCcmRangeOk) {
+      setFormError("Raspon kubikaze nije validan.");
       return;
     }
 
@@ -608,6 +652,9 @@ export default function AlertsScreen() {
         kmTo: showKmFilter ? kmToNum : null,
         fuelTypes: showVehicleFilters ? fuelTypes : [],
         bodyTypes: showVehicleFilters ? bodyTypes : [],
+        motoTypes: showMotoFilters ? motoTypes : [],
+        ccmFrom: showMotoFilters ? ccmFromNum : null,
+        ccmTo: showMotoFilters ? ccmToNum : null,
         isActive: !savingAsDraft,
       };
 
@@ -642,10 +689,13 @@ export default function AlertsScreen() {
   }, [
     bodyTypes,
     category,
+    ccmFromNum,
+    ccmToNum,
     editingId,
     ensureDeviceRegistered,
     fuelTypes,
     isAllCategory,
+    isCcmRangeOk,
     isKmRangeOk,
     isPropertyOk,
     isYearRangeOk,
@@ -659,7 +709,9 @@ export default function AlertsScreen() {
     refreshProfile,
     resetForm,
     savingAsDraft,
+    motoTypes,
     showKmFilter,
+    showMotoFilters,
     showVehicleFilters,
     showYearFilter,
     step,
@@ -953,6 +1005,58 @@ export default function AlertsScreen() {
                               ))}
                             </View>
 
+                            {showMotoFilters && (
+                              <>
+                                <Text style={styles.label}>Tip motora (opciono)</Text>
+                                <View style={styles.inlinePickerRow}>
+                                  {MOTO_TYPE_OPTIONS.map((option) => (
+                                    <Pressable
+                                      key={option.value}
+                                      onPress={() =>
+                                        setMotoTypes((prev) => toggleInList(option.value, prev))
+                                      }
+                                      style={({ pressed }) => [
+                                        styles.inlinePickerChip,
+                                        motoTypes.includes(option.value) &&
+                                          styles.inlinePickerChipActive,
+                                        pressed && styles.pressed,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.inlinePickerChipText,
+                                          motoTypes.includes(option.value) &&
+                                            styles.inlinePickerChipTextActive,
+                                        ]}
+                                      >
+                                        {option.label}
+                                      </Text>
+                                    </Pressable>
+                                  ))}
+                                </View>
+
+                                <Text style={styles.label}>Kubikaza u ccm (opciono)</Text>
+                                <View style={styles.rangeRow}>
+                                  <TextInput
+                                    value={ccmFromText}
+                                    onChangeText={setCcmFromText}
+                                    placeholder="Od"
+                                    placeholderTextColor={NeoTheme.colors.textDim}
+                                    style={[styles.input, styles.rangeInput]}
+                                    keyboardType="numeric"
+                                  />
+                                  <TextInput
+                                    value={ccmToText}
+                                    onChangeText={setCcmToText}
+                                    placeholder="Do"
+                                    placeholderTextColor={NeoTheme.colors.textDim}
+                                    style={[styles.input, styles.rangeInput]}
+                                    keyboardType="numeric"
+                                  />
+                                </View>
+                              </>
+                            )}
+
                             {showVehicleFilters && (
                               <>
                                 <Text style={styles.label}>Vrsta goriva (opciono)</Text>
@@ -1162,7 +1266,7 @@ export default function AlertsScreen() {
                           : "Bez ogranicenja cene"}
                       </Text>
                     </View>
-                    {(item.locationText || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length) && (
+                    {(item.locationText || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length || item.motoTypes?.length || item.ccmFrom || item.ccmTo) && (
                       <Text style={styles.alertFiltersText}>
                         {[
                           item.locationText ? `Lokacija: ${item.locationText}` : null,
@@ -1181,6 +1285,18 @@ export default function AlertsScreen() {
                                     value,
                                 )
                                 .join(", ")}`
+                            : null,
+                          item.motoTypes?.length
+                            ? `Tip motora: ${item.motoTypes
+                                .map(
+                                  (value) =>
+                                    MOTO_TYPE_OPTIONS.find((option) => option.value === value)
+                                      ?.label ?? value,
+                                )
+                                .join(", ")}`
+                            : null,
+                          item.ccmFrom || item.ccmTo
+                            ? `Kubikaza: ${item.ccmFrom ?? "-"}-${item.ccmTo ?? "-"} ccm`
                             : null,
                           item.bodyTypes?.length
                             ? `Karoserija: ${item.bodyTypes
