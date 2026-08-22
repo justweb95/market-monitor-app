@@ -4,11 +4,12 @@ import { parseApiErrorMessage } from "@/constants/apiError";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -308,6 +309,10 @@ export default function AlertsScreen() {
   const [kmFromText, setKmFromText] = useState("");
   const [kmToText, setKmToText] = useState("");
   const [propertyType, setPropertyType] = useState<PropertyType | null>(null);
+  // Kad je postavljen, forma radi u rezimu izmene postojeceg signala (PATCH),
+  // a ne kreiranja novog (POST).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const listRef = useRef<FlatList<AlertItem>>(null);
 
   const fetchAlerts = useCallback(
     async (isRetry = false): Promise<void> => {
@@ -374,7 +379,35 @@ export default function AlertsScreen() {
     setKmFromText("");
     setKmToText("");
     setPropertyType(null);
+    setEditingId(null);
     setFormError(null);
+  }, []);
+
+  // Otvara istu formu popunjenu podacima signala. Ne dira signal na serveru dok
+  // korisnik ne potvrdi izmenu (originalni signal ostaje netaknut ako odustane).
+  const startEdit = useCallback((item: AlertItem) => {
+    setEditingId(item.id);
+    setCategory(item.category);
+    setProductName(item.keywords.join(" "));
+    setPriceText(
+      typeof item.priceMax === "number" && item.priceMax > 0 ? String(item.priceMax) : "",
+    );
+    setLocationText(item.locationText || (LOCATION_OPTIONS[0] ?? "Svi regioni"));
+    setPropertyType(item.propertyType ?? null);
+    setYearFromText(item.yearFrom != null ? String(item.yearFrom) : "");
+    setYearToText(item.yearTo != null ? String(item.yearTo) : "");
+    setKmFromText(item.kmFrom != null ? String(item.kmFrom) : "");
+    setKmToText(item.kmTo != null ? String(item.kmTo) : "");
+    setShowAdvanced(
+      !!item.locationText ||
+        item.yearFrom != null ||
+        item.yearTo != null ||
+        item.kmFrom != null ||
+        item.kmTo != null,
+    );
+    setStep(2);
+    setFormError(null);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
   const toggleItem = useCallback(async (id: string) => {
@@ -464,7 +497,9 @@ export default function AlertsScreen() {
     savingAlert
       ? "Cuvam..."
       : step === 2 || (step === 1 && isAllCategory)
-        ? "Sacuvaj"
+        ? editingId
+          ? "Sacuvaj izmene"
+          : "Sacuvaj"
         : "Sledece";
 
   const primaryDisabled =
@@ -523,8 +558,8 @@ export default function AlertsScreen() {
         kmTo: showKmFilter ? kmToNum : null,
       };
 
-      const res = await fetch(`${API_URL}/alerts`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/alerts${editingId ? `/${editingId}` : ""}`, {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -533,12 +568,16 @@ export default function AlertsScreen() {
         throw new Error(await parseApiErrorMessage(res, "Čuvanje nije uspelo. Pokušaj ponovo."));
       }
 
-      const newAlert = await res.json();
-      if (!newAlert?.id) {
+      const savedAlert = await res.json();
+      if (!savedAlert?.id) {
         throw new Error("Backend je vratio nevalidan odgovor za signal.");
       }
 
-      setItems((prev) => [newAlert, ...prev]);
+      setItems((prev) =>
+        editingId
+          ? prev.map((item) => (item.id === editingId ? savedAlert : item))
+          : [savedAlert, ...prev],
+      );
       resetForm();
       void refreshProfile();
     } catch (error) {
@@ -549,6 +588,7 @@ export default function AlertsScreen() {
     }
   }, [
     category,
+    editingId,
     ensureDeviceRegistered,
     isAllCategory,
     isKmRangeOk,
@@ -596,9 +636,10 @@ export default function AlertsScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
         {loadingAlerts ? (
-          <ActivityIndicator style={{ marginTop: 32 }} color={NeoTheme.colors.lime} />
+          <ActivityIndicator style={{ marginTop: rs(32) }} color={NeoTheme.colors.lime} />
         ) : (
           <FlatList
+            ref={listRef}
             data={displayItems}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
@@ -665,7 +706,7 @@ export default function AlertsScreen() {
                       Nadogradi plan na Profil ekranu da otkljucas signale.
                     </Text>
                   </View>
-                ) : maxReached ? (
+                ) : maxReached && !editingId ? (
                   <View style={styles.maxCard}>
                     <Text style={styles.maxCardTitle}>Dosegnut limit od {alertLimit} signala</Text>
                     <Text style={styles.maxCardText}>
@@ -675,7 +716,7 @@ export default function AlertsScreen() {
                 ) : (
                   <View style={styles.formCard}>
                     <View style={styles.formTopRow}>
-                      <Text style={styles.formTitle}>Novi signal</Text>
+                      <Text style={styles.formTitle}>{editingId ? "Izmena signala" : "Novi signal"}</Text>
                     </View>
 
                     <View style={styles.stepTrack}>
@@ -690,7 +731,7 @@ export default function AlertsScreen() {
                       ))}
                     </View>
 
-                    {step === 0 && (
+                    {(step === 0 || !!editingId) && (
                       <View style={styles.categoryGrid}>
                         {CATEGORY_OPTIONS.map((option) => (
                           <Pressable
@@ -940,7 +981,9 @@ export default function AlertsScreen() {
                           onPress={resetForm}
                           style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}
                         >
-                          <Text style={styles.ghostBtnText}>Ponisti</Text>
+                          <Text style={styles.ghostBtnText}>
+                            {editingId ? "Odustani" : "Ponisti"}
+                          </Text>
                         </Pressable>
                       )}
                     </View>
@@ -1015,6 +1058,21 @@ export default function AlertsScreen() {
                   <Pressable
                     onPress={() => {
                       if (!item.isPreview) {
+                        startEdit(item);
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      styles.editBtn,
+                      item.isPreview && styles.disabledPreviewAction,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.editBtnText}>Izmeni</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      if (!item.isPreview) {
                         deleteItem(item.id);
                       }
                     }}
@@ -1050,22 +1108,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingHorizontal: rs(24),
+    paddingTop: rs(10),
   },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: rs(10),
   },
   centerText: {
     color: NeoTheme.colors.text,
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   headerRow: {
-    marginBottom: 2,
+    marginBottom: rs(2),
   },
   counterBox: {
     flexDirection: "row",
@@ -1073,60 +1131,60 @@ const styles = StyleSheet.create({
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderRadius: rs(12),
+    paddingHorizontal: rs(12),
+    paddingVertical: rs(7),
   },
   counterValue: {
     color: NeoTheme.colors.text,
-    fontSize: 22,
+    fontSize: rf(22),
     fontFamily: NeoTheme.fonts.bold,
   },
   counterMax: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   counterDangerText: {
     color: NeoTheme.colors.danger,
   },
   heroCard: {
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: rs(20),
+    padding: rs(18),
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: rs(14),
     ...neoShadow,
   },
   heroCopy: {
     flex: 1,
-    paddingRight: 18,
+    paddingRight: rs(18),
   },
   heroEyebrow: {
     color: NeoTheme.colors.lime,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 8,
+    marginBottom: rs(8),
   },
   heroTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: rf(24),
+    lineHeight: rf(28),
     fontFamily: NeoTheme.fonts.bold,
-    marginBottom: 8,
+    marginBottom: rs(8),
   },
   heroBody: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: rf(12),
+    lineHeight: rf(17),
     fontFamily: NeoTheme.fonts.medium,
   },
   heroMeta: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
+    width: rs(72),
+    height: rs(72),
+    borderRadius: rs(16),
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
@@ -1135,82 +1193,82 @@ const styles = StyleSheet.create({
   },
   heroMetaLabel: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.medium,
   },
   heroMetaValue: {
     color: NeoTheme.colors.lime,
-    fontSize: 20,
+    fontSize: rf(20),
     fontFamily: NeoTheme.fonts.bold,
-    marginTop: 4,
+    marginTop: rs(4),
   },
   infoBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: rs(8),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
+    borderRadius: rs(16),
+    paddingHorizontal: rs(14),
+    paddingVertical: rs(12),
+    marginBottom: rs(12),
   },
   infoText: {
     flex: 1,
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: rf(12),
+    lineHeight: rf(17),
     fontFamily: NeoTheme.fonts.medium,
   },
   maxCard: {
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: rs(18),
+    padding: rs(16),
     backgroundColor: NeoTheme.colors.dangerSoft,
     borderWidth: 1,
     borderColor: "rgba(255,103,103,0.34)",
-    marginBottom: 18,
+    marginBottom: rs(18),
   },
   maxCardTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 6,
+    marginBottom: rs(6),
   },
   maxCardText: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: rf(12),
+    lineHeight: rf(17),
     fontFamily: NeoTheme.fonts.medium,
   },
   formCard: {
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: rs(20),
+    padding: rs(16),
+    marginBottom: rs(16),
     ...neoShadow,
   },
   formTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: rs(14),
   },
   formTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 24,
+    fontSize: rf(24),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   stepTrack: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 16,
+    gap: rs(8),
+    marginBottom: rs(16),
   },
   stepSegment: {
     flex: 1,
-    height: 3,
+    height: rs(3),
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.12)",
   },
@@ -1221,16 +1279,16 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: rs(10),
   },
   categoryPill: {
     minWidth: "48%",
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: rs(14),
+    paddingHorizontal: rs(14),
+    paddingVertical: rs(12),
   },
   categoryPillActive: {
     backgroundColor: NeoTheme.colors.lime,
@@ -1240,19 +1298,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    gap: rs(8),
   },
   categoryPillText: {
     color: NeoTheme.colors.text,
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   categoryPillTextActive: {
     color: NeoTheme.colors.black,
   },
   betaBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: rs(7),
+    paddingVertical: rs(2),
     borderRadius: 999,
     borderWidth: 1,
     borderColor: NeoTheme.colors.lime,
@@ -1260,48 +1318,48 @@ const styles = StyleSheet.create({
   },
   betaBadgeText: {
     color: NeoTheme.colors.lime,
-    fontSize: 10,
+    fontSize: rf(10),
     fontFamily: NeoTheme.fonts.bold,
   },
   inputBlock: {
-    marginTop: 2,
-    marginBottom: 12,
+    marginTop: rs(2),
+    marginBottom: rs(12),
   },
   infoBoxInline: {
     flexDirection: "row",
-    gap: 8,
+    gap: rs(8),
     alignItems: "center",
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 10,
+    borderRadius: rs(12),
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(8),
+    marginBottom: rs(10),
   },
   infoTextInline: {
     flex: 1,
     color: NeoTheme.colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: rf(11),
+    lineHeight: rf(15),
     fontFamily: NeoTheme.fonts.medium,
   },
   inlinePickerWrap: {
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: rs(10),
+    marginBottom: rs(10),
   },
   inlinePickerRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: rs(8),
   },
   inlinePickerChip: {
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(6),
   },
   inlinePickerChipActive: {
     backgroundColor: NeoTheme.colors.lime,
@@ -1309,85 +1367,85 @@ const styles = StyleSheet.create({
   },
   inlinePickerChipText: {
     color: NeoTheme.colors.text,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
   },
   inlinePickerChipTextActive: {
     color: NeoTheme.colors.black,
   },
   advancedToggle: {
-    minHeight: 42,
-    borderRadius: 12,
+    minHeight: rs(42),
+    borderRadius: rs(12),
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
     backgroundColor: NeoTheme.colors.surfaceStrong,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 10,
+    marginTop: rs(10),
   },
   advancedToggleText: {
     color: NeoTheme.colors.text,
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   advancedWrap: {
-    marginTop: 12,
-    gap: 8,
+    marginTop: rs(12),
+    gap: rs(8),
   },
   rangeRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: rs(8),
   },
   rangeInput: {
     flex: 1,
   },
   label: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
-    marginBottom: 8,
+    marginBottom: rs(8),
   },
   input: {
-    minHeight: 52,
+    minHeight: rs(52),
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: 14,
+    borderRadius: rs(14),
     backgroundColor: "rgba(255,255,255,0.06)",
     color: NeoTheme.colors.text,
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.medium,
-    paddingHorizontal: 14,
+    paddingHorizontal: rs(14),
   },
   suggestionsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 10,
+    gap: rs(8),
+    marginTop: rs(10),
   },
   suggestionItem: {
     backgroundColor: "rgba(215,242,13,0.12)",
     borderWidth: 1,
     borderColor: "rgba(215,242,13,0.18)",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: rs(12),
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(6),
   },
   suggestionText: {
     color: NeoTheme.colors.limeSoft,
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.medium,
   },
   formError: {
     color: NeoTheme.colors.danger,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 10,
+    marginBottom: rs(10),
   },
   actionsRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: rs(10),
     alignItems: "center",
-    marginTop: 12,
+    marginTop: rs(12),
   },
   primaryBtnWrapper: {
     flex: 1,
@@ -1395,64 +1453,64 @@ const styles = StyleSheet.create({
     flexBasis: "60%",
   },
   primaryBtn: {
-    height: 52,
-    borderRadius: 14,
+    height: rs(52),
+    borderRadius: rs(14),
     alignItems: "center",
     justifyContent: "center",
   },
   primaryBtnText: {
     color: NeoTheme.colors.text,
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: NeoTheme.fonts.bold,
   },
   primaryBtnTextActive: {
     color: NeoTheme.colors.black,
   },
   ghostBtn: {
-    minHeight: 52,
-    minWidth: 96,
+    minHeight: rs(52),
+    minWidth: rs(96),
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: 14,
+    borderRadius: rs(14),
     alignItems: "center",
     justifyContent: "center",
   },
   ghostBtnText: {
     color: NeoTheme.colors.text,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   list: {
-    paddingBottom: 120,
+    paddingBottom: rs(120),
   },
   sectionRow: {
     flexDirection: "row",
     justifyContent: "flex-start",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: rs(12),
   },
   sectionTitle: {
     color: NeoTheme.colors.lime,
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   alertCard: {
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: rs(18),
+    padding: rs(14),
+    marginBottom: rs(12),
     ...neoShadow,
   },
   alertMainRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: rs(12),
   },
   alertAvatar: {
-    width: 42,
-    height: 42,
+    width: rs(42),
+    height: rs(42),
     borderRadius: NeoTheme.radius.xs,
     backgroundColor: "rgba(215, 242, 13, 0.1)",
     borderWidth: 1,
@@ -1465,16 +1523,16 @@ const styles = StyleSheet.create({
   },
   alertCategory: {
     color: NeoTheme.colors.lime,
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 4,
+    marginBottom: rs(4),
   },
   alertTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 18,
-    lineHeight: 20,
+    fontSize: rf(18),
+    lineHeight: rf(20),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 8,
+    marginBottom: rs(8),
   },
   alertMetaRow: {
     flexDirection: "row",
@@ -1483,23 +1541,23 @@ const styles = StyleSheet.create({
   },
   alertPrice: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.medium,
   },
   alertFiltersText: {
-    marginTop: 6,
+    marginTop: rs(6),
     color: NeoTheme.colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: rf(11),
+    lineHeight: rf(15),
     fontFamily: NeoTheme.fonts.medium,
   },
   statusBadge: {
     position: "absolute",
-    top: -11,
-    right: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    top: rs(-11),
+    right: rs(10),
+    paddingHorizontal: rs(8),
+    paddingVertical: rs(3),
+    borderRadius: rs(6),
     borderWidth: 1,
     zIndex: 10,
   },
@@ -1513,7 +1571,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: "rgba(57, 255, 20, 1)",
-    fontSize: 10,
+    fontSize: rf(10),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   statusBadgeTextPaused: {
@@ -1521,13 +1579,13 @@ const styles = StyleSheet.create({
   },
   alertActions: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 14,
+    gap: rs(8),
+    marginTop: rs(14),
   },
   pauseBtn: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 12,
+    minHeight: rs(38),
+    borderRadius: rs(12),
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -1536,13 +1594,13 @@ const styles = StyleSheet.create({
   },
   pauseBtnText: {
     color: "rgba(255, 149, 0, 1)",
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   enableBtn: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 12,
+    minHeight: rs(38),
+    borderRadius: rs(12),
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: NeoTheme.colors.lime,
@@ -1550,13 +1608,28 @@ const styles = StyleSheet.create({
   },
   enableBtnText: {
     color: NeoTheme.colors.black,
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.bold,
   },
+  editBtn: {
+    flex: 1,
+    minHeight: rs(38),
+    borderRadius: rs(12),
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editBtnText: {
+    color: NeoTheme.colors.text,
+    fontSize: rf(13),
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
   deleteBtn: {
-    minWidth: 92,
-    minHeight: 38,
-    borderRadius: 12,
+    flex: 1,
+    minHeight: rs(38),
+    borderRadius: rs(12),
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "rgba(255, 49, 49, 1)",
@@ -1565,47 +1638,47 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     color: "rgba(255, 49, 49, 1)",
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   disabledPreviewAction: {
     opacity: 0.5,
   },
   emptyBox: {
-    marginTop: 12,
+    marginTop: rs(12),
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 22,
-    borderRadius: 18,
+    paddingHorizontal: rs(18),
+    paddingVertical: rs(22),
+    borderRadius: rs(18),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
   },
   emptyTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 6,
+    marginBottom: rs(6),
   },
   emptyText: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.medium,
-    lineHeight: 18,
+    lineHeight: rf(18),
     textAlign: "center",
   },
   errorTitle: {
     color: NeoTheme.colors.danger,
-    fontSize: 22,
+    fontSize: rf(22),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   errorText: {
     color: NeoTheme.colors.text,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: rf(14),
+    lineHeight: rf(20),
     fontFamily: NeoTheme.fonts.medium,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: rs(8),
   },
   pressed: {
     opacity: 0.84,
