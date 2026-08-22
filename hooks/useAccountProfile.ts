@@ -6,7 +6,10 @@ export type PlanTier = "FREE" | "BRONZE" | "SILVER" | "GOLD";
 
 type PricingPlan = {
   tier: Exclude<PlanTier, "FREE">;
+  /** Koliko signala sme istovremeno da bude ukljuceno. */
   alerts: number;
+  /** Koliko signala jos sme da stoji u rezervi (nacrti/pauzirani). */
+  drafts: number;
   monthlyEur: number;
 };
 

@@ -1,4 +1,5 @@
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState, type ReactNode } from "react";
 import {
@@ -144,7 +145,9 @@ export function PaywallGate({
               >
                 <View style={styles.planCopy}>
                   <Text style={[styles.planTier, { color: accent }]}>{plan.label}</Text>
-                  <Text style={styles.planMeta}>{plan.alerts} aktivna signala</Text>
+                  <Text style={styles.planMeta}>
+                    {plan.alerts} aktivnih signala + {plan.alerts} u rezervi
+                  </Text>
                 </View>
                 <View style={styles.planPrice}>
                   {purchasing ? (
@@ -228,174 +231,174 @@ const styles = StyleSheet.create({
     backgroundColor: NeoTheme.colors.background,
   },
   container: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 48,
-    gap: 14,
+    paddingHorizontal: rs(24),
+    paddingTop: rs(24),
+    paddingBottom: rs(48),
+    gap: rs(14),
   },
   title: {
-    fontSize: 22,
+    fontSize: rf(22),
     fontFamily: NeoTheme.fonts.bold,
     color: NeoTheme.colors.text,
     textAlign: "center",
-    marginBottom: 2,
+    marginBottom: rs(2),
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textMuted,
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: rs(6),
   },
   card: {
-    borderRadius: 16,
+    borderRadius: rs(16),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    padding: 14,
-    gap: 6,
+    padding: rs(14),
+    gap: rs(6),
     ...neoShadow,
   },
   cardTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 15,
+    fontSize: rf(15),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   noticeText: {
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textMuted,
-    lineHeight: 18,
+    lineHeight: rf(18),
   },
   planList: {
-    gap: 8,
+    gap: rs(8),
   },
   planRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 14,
+    borderRadius: rs(14),
     borderWidth: 1.5,
     backgroundColor: "rgba(0,0,0,0.3)",
-    padding: 14,
+    padding: rs(14),
   },
   pressed: {
     opacity: 0.75,
   },
   planCopy: {
-    gap: 4,
+    gap: rs(4),
   },
   planTier: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.bold,
   },
   planMeta: {
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textMuted,
   },
   planPrice: {
     alignItems: "flex-end",
-    gap: 2,
+    gap: rs(2),
   },
   planPriceText: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.bold,
     color: NeoTheme.colors.lime,
   },
   planPeriod: {
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textMuted,
   },
   planUnavailable: {
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textDim,
   },
   purchaseHint: {
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textDim,
     textAlign: "center",
-    lineHeight: 16,
-    marginTop: -6,
+    lineHeight: rf(16),
+    marginTop: rs(-6),
   },
   syncingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 8,
+    gap: rs(8),
+    paddingVertical: rs(8),
   },
   syncingText: {
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.semiBold,
     color: NeoTheme.colors.lime,
   },
   codeRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: rs(8),
   },
   codeInput: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 10,
+    minHeight: rs(44),
+    borderRadius: rs(10),
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
     backgroundColor: "rgba(255,255,255,0.06)",
-    paddingHorizontal: 12,
+    paddingHorizontal: rs(12),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.text,
   },
   codeBtn: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    minHeight: rs(44),
+    paddingHorizontal: rs(16),
+    borderRadius: rs(10),
     backgroundColor: NeoTheme.colors.lime,
     alignItems: "center",
     justifyContent: "center",
   },
   codeBtnText: {
     color: NeoTheme.colors.black,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.bold,
   },
   disabled: {
     opacity: 0.5,
   },
   inlineError: {
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.danger,
   },
   inlineSuccess: {
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.lime,
   },
   linkBtn: {
     alignSelf: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: rs(8),
+    paddingHorizontal: rs(16),
   },
   linkBtnText: {
-    fontSize: 13,
+    fontSize: rf(13),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textMuted,
     textDecorationLine: "underline",
   },
   profileBtn: {
     alignSelf: "center",
-    marginTop: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    marginTop: rs(4),
+    paddingVertical: rs(10),
+    paddingHorizontal: rs(20),
+    borderRadius: rs(10),
     borderWidth: 1.5,
     borderColor: NeoTheme.colors.lime,
   },
   profileBtnText: {
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.semiBold,
     color: NeoTheme.colors.lime,
   },

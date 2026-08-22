@@ -411,6 +411,10 @@ export default function AlertsScreen() {
   const totalLimitReached = !isPlanLocked && items.length >= totalAlertLimit;
   // Kad su sva aktivna mesta popunjena, nov signal se cuva kao nacrt (rezerva).
   const savingAsDraft = activeLimitReached && !totalLimitReached && !editingId;
+  // "U rezervu" ima smisla samo kad signal moze da se sacuva, a glavno dugme
+  // ga ne bi ionako sacuvalo kao rezervu.
+  const canSaveDraft =
+    !editingId && !savingAsDraft && !totalLimitReached && !isPlanLocked;
 
   const resetForm = useCallback(() => {
     setStep(0);
@@ -591,8 +595,11 @@ export default function AlertsScreen() {
     (step === 1 && !isNameOk) ||
     (step === 2 && (!isPriceOk || !isPropertyOk || !isYearRangeOk || !isKmRangeOk || !isCcmRangeOk));
 
-  const onPrimary = useCallback(async () => {
+  const onPrimary = useCallback(async (options?: { asDraft?: boolean }) => {
     if (primaryDisabled) return;
+    // Signal se cuva u rezervu ili kad su aktivna mesta puna, ili kad je
+    // korisnik svesno kliknuo "U rezervu".
+    const asDraft = savingAsDraft || options?.asDraft === true;
     if (step === 0) {
       setStep(1);
       return;
@@ -650,7 +657,7 @@ export default function AlertsScreen() {
         motoTypes: showMotoFilters ? motoTypes : [],
         ccmFrom: showMotoFilters ? ccmFromNum : null,
         ccmTo: showMotoFilters ? ccmToNum : null,
-        isActive: !savingAsDraft,
+        isActive: !asDraft,
       };
 
       const res = await fetch(`${API_URL}/alerts${editingId ? `/${editingId}` : ""}`, {
@@ -1171,7 +1178,9 @@ export default function AlertsScreen() {
                           style={styles.input}
                           keyboardType="numeric"
                           returnKeyType="done"
-                          onSubmitEditing={onPrimary}
+                          onSubmitEditing={() => {
+                            void onPrimary();
+                          }}
                         />
                       </View>
                     )}
@@ -1180,7 +1189,9 @@ export default function AlertsScreen() {
 
                     <View style={styles.actionsRow}>
                       <Pressable
-                        onPress={onPrimary}
+                        onPress={() => {
+                          void onPrimary();
+                        }}
                         disabled={primaryDisabled}
                         style={({ pressed }) => [styles.primaryBtnWrapper, pressed && !primaryDisabled && styles.pressed]}
                       >
@@ -1198,6 +1209,17 @@ export default function AlertsScreen() {
                         </LinearGradient>
                       </Pressable>
 
+                      {canSaveDraft && (
+                        <Pressable
+                          onPress={() => {
+                            void onPrimary({ asDraft: true });
+                          }}
+                          style={({ pressed }) => [styles.draftBtn, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.draftBtnText}>U rezervu</Text>
+                        </Pressable>
+                      )}
+
                       {(step !== 0 || category) && (
                         <Pressable
                           onPress={resetForm}
@@ -1214,6 +1236,12 @@ export default function AlertsScreen() {
 
                 <View style={styles.sectionRow}>
                   <Text style={styles.sectionTitle}>Moji signali</Text>
+                  {!isPlanLocked && (
+                    <Text style={styles.sectionCount}>
+                      {activeCount}/{alertLimit} ukljucenih · {items.length - activeCount}/
+                      {draftLimit} u rezervi
+                    </Text>
+                  )}
                 </View>
               </>
             }
@@ -1221,7 +1249,7 @@ export default function AlertsScreen() {
               <View style={styles.alertCard}>
                 <View style={[styles.statusBadge, item.isActive ? styles.statusBadgeActive : styles.statusBadgePaused]}>
                   <Text style={[styles.statusBadgeText, !item.isActive && styles.statusBadgeTextPaused]}>
-                    {item.isActive ? "AKTIVNO" : "PAUZA"}
+                    {item.isActive ? "AKTIVNO" : "REZERVA"}
                   </Text>
                 </View>
 
@@ -1727,6 +1755,20 @@ const styles = StyleSheet.create({
   primaryBtnTextActive: {
     color: NeoTheme.colors.black,
   },
+  draftBtn: {
+    minHeight: rs(52),
+    paddingHorizontal: rs(16),
+    borderRadius: rs(14),
+    borderWidth: 1,
+    borderColor: NeoTheme.colors.borderStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  draftBtnText: {
+    color: NeoTheme.colors.text,
+    fontSize: rf(14),
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
   ghostBtn: {
     minHeight: rs(52),
     minWidth: rs(96),
@@ -1745,10 +1787,16 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: rs(120),
   },
+  sectionCount: {
+    color: NeoTheme.colors.textMuted,
+    fontSize: rf(12),
+    fontFamily: NeoTheme.fonts.medium,
+  },
   sectionRow: {
     flexDirection: "row",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
     alignItems: "center",
+    gap: rs(8),
     marginBottom: rs(12),
   },
   sectionTitle: {

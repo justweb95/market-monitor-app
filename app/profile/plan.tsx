@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/app-header";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { rf, rs } from "@/constants/responsive";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import type { PlanTier } from "@/hooks/useAccountProfile";
 import { useDevice } from "@/contexts/DeviceContext";
@@ -29,6 +30,8 @@ type PlanCard = {
   accent: string;
   description: string;
   alerts: number;
+  /** Koliko signala jos sme da stoji sacuvano u rezervi (nacrti/pauzirani). */
+  drafts: number;
   rightLabel: string;
   priceEur?: number;
 };
@@ -51,6 +54,7 @@ const PLANS: PlanCard[] = [
     accent: "rgba(215, 242, 13, 1)",
     description: "Drugarski plan se aktivira unosom koda.",
     alerts: 5,
+    drafts: 5,
     rightLabel: "Code aktivacija",
   },
   {
@@ -58,8 +62,9 @@ const PLANS: PlanCard[] = [
     title: "Bronze",
     icon: "shield-half-outline",
     accent: NeoTheme.colors.planAccent.BRONZE,
-    description: "Bronzani tier vam dozvoljava 3 aktivna signala.",
+    description: "Bronzani tier: 3 aktivna signala + jos 3 sacuvana u rezervi.",
     alerts: 3,
+    drafts: 3,
     rightLabel: "10€",
     priceEur: 10,
   },
@@ -68,8 +73,9 @@ const PLANS: PlanCard[] = [
     title: "Silver",
     icon: "diamond-outline",
     accent: NeoTheme.colors.planAccent.SILVER,
-    description: "Silver tier vam dozvoljava 6 aktivnih signala.",
+    description: "Silver tier: 6 aktivnih signala + jos 6 sacuvanih u rezervi.",
     alerts: 6,
+    drafts: 6,
     rightLabel: "15€",
     priceEur: 15,
   },
@@ -78,8 +84,9 @@ const PLANS: PlanCard[] = [
     title: "Gold",
     icon: "medal-outline",
     accent: NeoTheme.colors.planAccent.GOLD,
-    description: "Gold tier vam dozvoljava 10 aktivnih signala.",
+    description: "Gold tier: 10 aktivnih signala + jos 10 sacuvanih u rezervi.",
     alerts: 10,
+    drafts: 10,
     rightLabel: "20€",
     priceEur: 20,
   },
@@ -355,7 +362,7 @@ export default function PlanScreen() {
                     <Ionicons name={plan.icon} size={18} color={plan.accent} />
                     <View style={styles.planCopy}>
                       <Text style={[styles.planTier, { color: plan.accent }]}>{plan.title}</Text>
-                      <Text style={styles.planMeta}>{`${plan.alerts} signala`}</Text>
+                      <Text style={styles.planMeta}>{`${plan.alerts} aktivnih + ${plan.drafts} u rezervi`}</Text>
                     </View>
                     {isActivePlan ? (
                       <Text style={styles.planActive}>Aktivno</Text>
@@ -493,42 +500,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingHorizontal: rs(24),
+    paddingTop: rs(10),
   },
   loaderWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: rs(10),
   },
   loaderText: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.semiBold,
   },
   content: {
-    paddingBottom: 36,
-    gap: 12,
+    paddingBottom: rs(36),
+    gap: rs(12),
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 12,
+    gap: rs(12),
   },
   summaryText: {
     color: NeoTheme.colors.lime,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   summaryTextTrial: {
-    fontSize: 10,
+    fontSize: rf(10),
     fontFamily: NeoTheme.fonts.bold,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: rs(8),
+    paddingVertical: rs(4),
     borderRadius: 999,
     overflow: "hidden",
     textAlign: "center",
-    minWidth: 74,
+    minWidth: rs(74),
   },
   periodTrial: {
     color: "#F6A623",
@@ -558,46 +565,46 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 8,
-    padding: 10,
+    gap: rs(8),
+    padding: rs(10),
     backgroundColor: "rgba(215, 242, 13, 0.08)",
-    borderRadius: 10,
+    borderRadius: rs(10),
   },
   subscriptionText: {
     flex: 1,
     color: NeoTheme.colors.lime,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: rs(16),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    padding: 14,
+    padding: rs(14),
     ...neoShadow,
   },
   cardTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 10,
+    marginBottom: rs(10),
   },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    paddingVertical: rs(6),
   },
   actionRowBorder: {
-    marginTop: 6,
-    paddingTop: 12,
+    marginTop: rs(6),
+    paddingTop: rs(12),
     borderTopWidth: 1,
     borderTopColor: NeoTheme.colors.border,
   },
   actionText: {
     color: NeoTheme.colors.text,
-    fontSize: 15,
+    fontSize: rf(15),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   dangerText: {
@@ -605,85 +612,85 @@ const styles = StyleSheet.create({
   },
   planIntro: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: rf(12),
+    lineHeight: rf(18),
     fontFamily: NeoTheme.fonts.medium,
-    marginBottom: 10,
+    marginBottom: rs(10),
   },
   planList: {
-    gap: 8,
+    gap: rs(8),
   },
   planRow: {
-    borderRadius: 12,
+    borderRadius: rs(12),
     borderWidth: 1,
     backgroundColor: "rgba(0,0,0,0.3)",
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(10),
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: rs(10),
   },
   planCopy: {
     flex: 1,
   },
   planTier: {
     fontFamily: NeoTheme.fonts.semiBold,
-    fontSize: 14,
+    fontSize: rf(14),
   },
   planMeta: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 12,
-    marginTop: 3,
+    fontSize: rf(12),
+    marginTop: rs(3),
   },
   planSoon: {
     color: NeoTheme.colors.textMuted,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 12,
+    fontSize: rf(12),
   },
   planActive: {
     color: NeoTheme.colors.lime,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 11,
+    fontSize: rf(11),
   },
   planDetailCard: {
-    marginTop: 12,
-    borderRadius: 14,
+    marginTop: rs(12),
+    borderRadius: rs(14),
     borderWidth: 1,
     backgroundColor: "rgba(255,255,255,0.04)",
-    padding: 12,
+    padding: rs(12),
   },
   planDetailHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
+    gap: rs(8),
+    marginBottom: rs(8),
   },
   planDetailTitle: {
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 18,
+    fontSize: rf(18),
   },
   planDetailText: {
     color: NeoTheme.colors.textMuted,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 10,
+    fontSize: rf(13),
+    lineHeight: rf(18),
+    marginBottom: rs(10),
   },
   input: {
-    minHeight: 44,
-    borderRadius: 10,
+    minHeight: rs(44),
+    borderRadius: rs(10),
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
     backgroundColor: "rgba(255,255,255,0.06)",
     color: NeoTheme.colors.text,
-    paddingHorizontal: 12,
+    paddingHorizontal: rs(12),
     fontFamily: NeoTheme.fonts.medium,
-    marginBottom: 8,
+    marginBottom: rs(8),
   },
   freeBtn: {
-    minHeight: 40,
-    borderRadius: 10,
+    minHeight: rs(40),
+    borderRadius: rs(10),
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(215, 242, 13, 0.14)",
@@ -693,15 +700,15 @@ const styles = StyleSheet.create({
   freeBtnText: {
     color: "rgba(215, 242, 13, 1)",
     fontFamily: NeoTheme.fonts.semiBold,
-    fontSize: 13,
+    fontSize: rf(13),
   },
   dangerBtn: {
     backgroundColor: "rgba(255, 49, 49, 0.12)",
     borderColor: NeoTheme.colors.danger,
   },
   buyBtn: {
-    minHeight: 40,
-    borderRadius: 10,
+    minHeight: rs(40),
+    borderRadius: rs(10),
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: NeoTheme.colors.lime,
@@ -709,7 +716,7 @@ const styles = StyleSheet.create({
   buyBtnText: {
     color: NeoTheme.colors.black,
     fontFamily: NeoTheme.fonts.semiBold,
-    fontSize: 13,
+    fontSize: rf(13),
   },
   disabled: {
     opacity: 0.5,
@@ -719,16 +726,16 @@ const styles = StyleSheet.create({
   },
   inlineError: {
     color: NeoTheme.colors.danger,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.regular,
-    marginTop: 6,
-    paddingHorizontal: 2,
+    marginTop: rs(6),
+    paddingHorizontal: rs(2),
   },
   inlineSuccess: {
     color: NeoTheme.colors.lime,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginTop: 6,
-    paddingHorizontal: 2,
+    marginTop: rs(6),
+    paddingHorizontal: rs(2),
   },
 });
