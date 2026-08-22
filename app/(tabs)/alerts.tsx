@@ -48,6 +48,8 @@ type AlertItem = {
   yearTo?: number | null;
   kmFrom?: number | null;
   kmTo?: number | null;
+  fuelTypes?: string[];
+  bodyTypes?: string[];
   isActive: boolean;
   isPreview?: boolean;
 };
@@ -87,6 +89,32 @@ const LOCATION_OPTIONS = [
   "Pancevo",
   "Smederevo",
 ];
+
+// Vrsta goriva i tip karoserije - vrednosti moraju da odgovaraju backend-u
+// (ALLOWED_FUEL_TYPES / ALLOWED_BODY_TYPES u notification.controller.ts).
+const FUEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "BENZIN", label: "Benzin" },
+  { value: "DIZEL", label: "Dizel" },
+  { value: "HIBRID", label: "Hibrid" },
+  { value: "ELEKTRO", label: "Elektricni" },
+  { value: "TNG", label: "TNG (plin)" },
+  { value: "CNG", label: "CNG (metan)" },
+];
+
+const BODY_OPTIONS: { value: string; label: string }[] = [
+  { value: "LIMUZINA", label: "Limuzina" },
+  { value: "HECBEK", label: "Hecbek" },
+  { value: "KARAVAN", label: "Karavan" },
+  { value: "SUV", label: "SUV / Dzip" },
+  { value: "KUPE", label: "Kupe" },
+  { value: "KABRIOLET", label: "Kabriolet" },
+  { value: "MONOVOLUMEN", label: "Monovolumen" },
+  { value: "KOMBI", label: "Kombi" },
+  { value: "PIKAP", label: "Pikap" },
+];
+
+/** Kategorije za koje ima smisla filtrirati gorivo i karoseriju. */
+const VEHICLE_FILTER_CATEGORIES = new Set<Category>(["AUTOMOBILI"]);
 
 const PROPERTY_OPTIONS: Array<{ value: PropertyType; label: string }> = [
   { value: "STAN", label: "Stan" },
@@ -309,6 +337,8 @@ export default function AlertsScreen() {
   const [kmFromText, setKmFromText] = useState("");
   const [kmToText, setKmToText] = useState("");
   const [propertyType, setPropertyType] = useState<PropertyType | null>(null);
+  const [fuelTypes, setFuelTypes] = useState<string[]>([]);
+  const [bodyTypes, setBodyTypes] = useState<string[]>([]);
   // Kad je postavljen, forma radi u rezimu izmene postojeceg signala (PATCH),
   // a ne kreiranja novog (POST).
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -387,6 +417,8 @@ export default function AlertsScreen() {
     setKmFromText("");
     setKmToText("");
     setPropertyType(null);
+    setFuelTypes([]);
+    setBodyTypes([]);
     setEditingId(null);
     setFormError(null);
   }, []);
@@ -402,6 +434,8 @@ export default function AlertsScreen() {
     );
     setLocationText(item.locationText || (LOCATION_OPTIONS[0] ?? "Svi regioni"));
     setPropertyType(item.propertyType ?? null);
+    setFuelTypes(item.fuelTypes ?? []);
+    setBodyTypes(item.bodyTypes ?? []);
     setYearFromText(item.yearFrom != null ? String(item.yearFrom) : "");
     setYearToText(item.yearTo != null ? String(item.yearTo) : "");
     setKmFromText(item.kmFrom != null ? String(item.kmFrom) : "");
@@ -411,7 +445,9 @@ export default function AlertsScreen() {
         item.yearFrom != null ||
         item.yearTo != null ||
         item.kmFrom != null ||
-        item.kmTo != null,
+        item.kmTo != null ||
+        (item.fuelTypes?.length ?? 0) > 0 ||
+        (item.bodyTypes?.length ?? 0) > 0,
     );
     setStep(2);
     setFormError(null);
@@ -483,6 +519,10 @@ export default function AlertsScreen() {
   const isPriceOk = isAllCategory || (Number.isFinite(priceNum) && priceNum > 0);
   const showYearFilter = !!category && YEAR_FILTER_CATEGORIES.has(category);
   const showKmFilter = !!category && KM_FILTER_CATEGORIES.has(category);
+  const showVehicleFilters = !!category && VEHICLE_FILTER_CATEGORIES.has(category);
+
+  const toggleInList = (value: string, list: string[]): string[] =>
+    list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 
   const yearFromNum = yearFromText.trim() ? Number(yearFromText) : null;
   const yearToNum = yearToText.trim() ? Number(yearToText) : null;
@@ -566,6 +606,8 @@ export default function AlertsScreen() {
         yearTo: showYearFilter ? yearToNum : null,
         kmFrom: showKmFilter ? kmFromNum : null,
         kmTo: showKmFilter ? kmToNum : null,
+        fuelTypes: showVehicleFilters ? fuelTypes : [],
+        bodyTypes: showVehicleFilters ? bodyTypes : [],
         isActive: !savingAsDraft,
       };
 
@@ -598,9 +640,11 @@ export default function AlertsScreen() {
       setSavingAlert(false);
     }
   }, [
+    bodyTypes,
     category,
     editingId,
     ensureDeviceRegistered,
+    fuelTypes,
     isAllCategory,
     isKmRangeOk,
     isPropertyOk,
@@ -616,6 +660,7 @@ export default function AlertsScreen() {
     resetForm,
     savingAsDraft,
     showKmFilter,
+    showVehicleFilters,
     showYearFilter,
     step,
     yearFromNum,
@@ -908,6 +953,80 @@ export default function AlertsScreen() {
                               ))}
                             </View>
 
+                            {showVehicleFilters && (
+                              <>
+                                <Text style={styles.label}>Vrsta goriva (opciono)</Text>
+                                <View style={styles.inlinePickerRow}>
+                                  {FUEL_OPTIONS.map((option) => (
+                                    <Pressable
+                                      key={option.value}
+                                      onPress={() =>
+                                        setFuelTypes((prev) => toggleInList(option.value, prev))
+                                      }
+                                      style={({ pressed }) => [
+                                        styles.inlinePickerChip,
+                                        fuelTypes.includes(option.value) &&
+                                          styles.inlinePickerChipActive,
+                                        pressed && styles.pressed,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.inlinePickerChipText,
+                                          fuelTypes.includes(option.value) &&
+                                            styles.inlinePickerChipTextActive,
+                                        ]}
+                                      >
+                                        {option.label}
+                                      </Text>
+                                    </Pressable>
+                                  ))}
+                                </View>
+
+                                <Text style={styles.label}>Tip karoserije (opciono)</Text>
+                                <View style={styles.inlinePickerRow}>
+                                  {BODY_OPTIONS.map((option) => (
+                                    <Pressable
+                                      key={option.value}
+                                      onPress={() =>
+                                        setBodyTypes((prev) => toggleInList(option.value, prev))
+                                      }
+                                      style={({ pressed }) => [
+                                        styles.inlinePickerChip,
+                                        bodyTypes.includes(option.value) &&
+                                          styles.inlinePickerChipActive,
+                                        pressed && styles.pressed,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.inlinePickerChipText,
+                                          bodyTypes.includes(option.value) &&
+                                            styles.inlinePickerChipTextActive,
+                                        ]}
+                                      >
+                                        {option.label}
+                                      </Text>
+                                    </Pressable>
+                                  ))}
+                                </View>
+
+                                {(fuelTypes.length > 0 || bodyTypes.length > 0) && (
+                                  <View style={styles.infoBoxInline}>
+                                    <Ionicons
+                                      name="information-circle-outline"
+                                      size={16}
+                                      color={NeoTheme.colors.lime}
+                                    />
+                                    <Text style={styles.infoTextInline}>
+                                      Oglasi kod kojih se gorivo/karoserija ne mogu prepoznati
+                                      nece biti poslati dok je ovaj filter ukljucen.
+                                    </Text>
+                                  </View>
+                                )}
+                              </>
+                            )}
+
                             {showYearFilter && (
                               <>
                                 <Text style={styles.label}>Godiste (opciono)</Text>
@@ -1043,7 +1162,7 @@ export default function AlertsScreen() {
                           : "Bez ogranicenja cene"}
                       </Text>
                     </View>
-                    {(item.locationText || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo) && (
+                    {(item.locationText || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length) && (
                       <Text style={styles.alertFiltersText}>
                         {[
                           item.locationText ? `Lokacija: ${item.locationText}` : null,
@@ -1053,6 +1172,24 @@ export default function AlertsScreen() {
                             : null,
                           item.kmFrom || item.kmTo
                             ? `KM: ${item.kmFrom ?? "-"}-${item.kmTo ?? "-"}`
+                            : null,
+                          item.fuelTypes?.length
+                            ? `Gorivo: ${item.fuelTypes
+                                .map(
+                                  (value) =>
+                                    FUEL_OPTIONS.find((option) => option.value === value)?.label ??
+                                    value,
+                                )
+                                .join(", ")}`
+                            : null,
+                          item.bodyTypes?.length
+                            ? `Karoserija: ${item.bodyTypes
+                                .map(
+                                  (value) =>
+                                    BODY_OPTIONS.find((option) => option.value === value)?.label ??
+                                    value,
+                                )
+                                .join(", ")}`
                             : null,
                         ]
                           .filter(Boolean)
