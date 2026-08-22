@@ -7,6 +7,7 @@ import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
 import { rf, rs } from "@/constants/responsive";
+import { normalizeSearchText } from "@/constants/text";
 import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
@@ -270,11 +271,9 @@ const WEB_PREVIEW_ALERT: AlertItem = {
 };
 
 function normalizeText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim();
+  // Cirilica i latinica se svode na isti oblik, pa predlozi rade i kad
+  // korisnik kuca "Гoлф" umesto "Golf".
+  return normalizeSearchText(value).replace(/[^a-z0-9 -]/g, "").trim();
 }
 
 function getCategoryLabel(category: Category): string {
