@@ -1,5 +1,6 @@
 import { GOOGLE_WEB_CLIENT_ID } from "@/constants/env";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   GoogleSignin,
@@ -219,6 +220,9 @@ export function AuthGate({ onSubmit }: Props) {
                   style={styles.input}
                   placeholder="Ime"
                   placeholderTextColor={NeoTheme.colors.textDim}
+                  selectionColor={NeoTheme.colors.lime}
+                  cursorColor={NeoTheme.colors.lime}
+                  underlineColorAndroid="transparent"
                   autoCapitalize="words"
                   autoComplete="given-name"
                   editable={!anySubmitting}
@@ -230,6 +234,9 @@ export function AuthGate({ onSubmit }: Props) {
                   style={styles.input}
                   placeholder="Prezime"
                   placeholderTextColor={NeoTheme.colors.textDim}
+                  selectionColor={NeoTheme.colors.lime}
+                  cursorColor={NeoTheme.colors.lime}
+                  underlineColorAndroid="transparent"
                   autoCapitalize="words"
                   autoComplete="family-name"
                   editable={!anySubmitting}
@@ -243,6 +250,9 @@ export function AuthGate({ onSubmit }: Props) {
               style={styles.input}
               placeholder="Email"
               placeholderTextColor={NeoTheme.colors.textDim}
+              selectionColor={NeoTheme.colors.lime}
+              cursorColor={NeoTheme.colors.lime}
+              underlineColorAndroid="transparent"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
@@ -256,6 +266,9 @@ export function AuthGate({ onSubmit }: Props) {
               style={styles.input}
               placeholder={isLogin ? "Lozinka" : "Lozinka (min. 6 karaktera)"}
               placeholderTextColor={NeoTheme.colors.textDim}
+              selectionColor={NeoTheme.colors.lime}
+              cursorColor={NeoTheme.colors.lime}
+              underlineColorAndroid="transparent"
               secureTextEntry
               autoComplete="password"
               editable={!submitting}
@@ -355,19 +368,19 @@ const styles = StyleSheet.create({
     marginBottom: NeoTheme.spacing.md,
   },
   logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: rs(32),
+    height: rs(32),
+    borderRadius: rs(8),
   },
   brand: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.bold,
     color: NeoTheme.colors.text,
   },
   iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: rs(80),
+    height: rs(80),
+    borderRadius: rs(40),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
@@ -376,17 +389,17 @@ const styles = StyleSheet.create({
     marginBottom: NeoTheme.spacing.xs,
   },
   title: {
-    fontSize: 22,
+    fontSize: rf(22),
     fontFamily: NeoTheme.fonts.bold,
     color: NeoTheme.colors.text,
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textMuted,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: rf(20),
     marginBottom: NeoTheme.spacing.xs,
   },
   tabRow: {
@@ -396,12 +409,12 @@ const styles = StyleSheet.create({
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    padding: 4,
+    padding: rs(4),
     marginTop: NeoTheme.spacing.xs,
   },
   tabBtn: {
     flex: 1,
-    minHeight: 38,
+    minHeight: rs(38),
     borderRadius: NeoTheme.radius.sm - 2,
     alignItems: "center",
     justifyContent: "center",
@@ -411,7 +424,7 @@ const styles = StyleSheet.create({
   },
   tabBtnText: {
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 13,
+    fontSize: rf(13),
     color: NeoTheme.colors.textMuted,
   },
   tabBtnTextActive: {
@@ -428,24 +441,28 @@ const styles = StyleSheet.create({
   },
   label: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
-    marginBottom: 6,
+    marginBottom: rs(6),
     marginTop: NeoTheme.spacing.xs,
   },
   input: {
-    minHeight: 44,
+    minHeight: rs(44),
     borderRadius: NeoTheme.radius.sm,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    // Namerno neprozirna (solid) pozadina umesto rgba bele: na nekim Android
+    // temama je providna varijanta davala tekst bez kontrasta (nevidljiv unos).
+    backgroundColor: "#242424",
     color: NeoTheme.colors.text,
+    fontSize: rf(15),
     paddingHorizontal: NeoTheme.spacing.sm,
+    paddingVertical: rs(10),
     fontFamily: NeoTheme.fonts.medium,
   },
   submitBtn: {
     marginTop: NeoTheme.spacing.md,
-    minHeight: 48,
+    minHeight: rs(48),
     borderRadius: NeoTheme.radius.sm,
     alignItems: "center",
     justifyContent: "center",
@@ -454,7 +471,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     color: NeoTheme.colors.black,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 15,
+    fontSize: rf(15),
   },
   dividerRow: {
     flexDirection: "row",
@@ -470,11 +487,11 @@ const styles = StyleSheet.create({
   dividerText: {
     color: NeoTheme.colors.textDim,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 12,
+    fontSize: rf(12),
   },
   googleBtn: {
     marginTop: NeoTheme.spacing.md,
-    minHeight: 48,
+    minHeight: rs(48),
     borderRadius: NeoTheme.radius.sm,
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
@@ -487,18 +504,18 @@ const styles = StyleSheet.create({
   googleBtnText: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 14,
+    fontSize: rf(14),
   },
   switchLink: {
     marginTop: NeoTheme.spacing.sm,
-    minHeight: 36,
+    minHeight: rs(36),
     alignItems: "center",
     justifyContent: "center",
   },
   switchLinkText: {
     color: NeoTheme.colors.lime,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 13,
+    fontSize: rf(13),
   },
   disabled: {
     opacity: 0.6,
@@ -508,12 +525,12 @@ const styles = StyleSheet.create({
   },
   inlineError: {
     color: NeoTheme.colors.danger,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
     marginTop: NeoTheme.spacing.xs,
   },
   footnote: {
-    fontSize: 11,
+    fontSize: rf(11),
     fontFamily: NeoTheme.fonts.medium,
     color: NeoTheme.colors.textDim,
     textAlign: "center",
