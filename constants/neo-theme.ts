@@ -1,3 +1,5 @@
+import { scale } from "./responsive";
+
 export const NeoTheme = {
   colors: {
     background: "#161616",
@@ -25,18 +27,18 @@ export const NeoTheme = {
     },
   },
   radius: {
-    xs: 2,
-    sm: 8,
-    md: 16,
-    lg: 22,
-    xl: 30,
+    xs: scale(2),
+    sm: scale(8),
+    md: scale(16),
+    lg: scale(22),
+    xl: scale(30),
   },
   spacing: {
-    xs: 6,
-    sm: 10,
-    md: 16,
-    lg: 24,
-    xl: 32,
+    xs: scale(6),
+    sm: scale(10),
+    md: scale(16),
+    lg: scale(24),
+    xl: scale(32),
   },
   fonts: {
     regular: "ChakraPetch_400Regular",

@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -55,40 +56,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingHorizontal: rs(24),
+    paddingTop: rs(10),
   },
   content: {
-    paddingBottom: 36,
-    gap: 12,
+    paddingBottom: rs(36),
+    gap: rs(12),
   },
   card: {
-    borderRadius: 16,
+    borderRadius: rs(16),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    padding: 14,
+    padding: rs(14),
     ...neoShadow,
   },
   cardTitle: {
     color: NeoTheme.colors.text,
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginBottom: 10,
+    marginBottom: rs(10),
   },
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: rs(12),
   },
   toggleCopy: {
     flex: 1,
   },
   toggleHint: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: rf(12),
+    lineHeight: rf(18),
     fontFamily: NeoTheme.fonts.medium,
   },
 });

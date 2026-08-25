@@ -1,4 +1,5 @@
 import { NeoTheme } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import React, { Component, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -60,34 +61,34 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 32,
-    gap: 14,
+    paddingHorizontal: rs(32),
+    gap: rs(14),
   },
   title: {
     color: NeoTheme.colors.text,
-    fontSize: 20,
+    fontSize: rf(20),
     fontFamily: NeoTheme.fonts.bold,
     textAlign: "center",
   },
   body: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: rf(14),
+    lineHeight: rf(20),
     textAlign: "center",
     fontFamily: NeoTheme.fonts.medium,
   },
   button: {
-    marginTop: 10,
-    height: 48,
-    paddingHorizontal: 28,
-    borderRadius: 24,
+    marginTop: rs(10),
+    height: rs(48),
+    paddingHorizontal: rs(28),
+    borderRadius: rs(24),
     backgroundColor: NeoTheme.colors.lime,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonText: {
     color: NeoTheme.colors.black,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.semiBold,
   },
 });

@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { useRouter } from "expo-router";
@@ -133,53 +134,53 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingHorizontal: rs(24),
+    paddingTop: rs(10),
   },
   loaderWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: rs(10),
   },
   loaderText: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.semiBold,
   },
   content: {
-    paddingBottom: 36,
-    gap: 12,
+    paddingBottom: rs(36),
+    gap: rs(12),
   },
   card: {
-    borderRadius: 16,
+    borderRadius: rs(16),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    padding: 14,
+    padding: rs(14),
     ...neoShadow,
   },
   label: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
-    marginBottom: 6,
-    marginTop: 8,
+    marginBottom: rs(6),
+    marginTop: rs(8),
   },
   input: {
-    minHeight: 44,
-    borderRadius: 10,
+    minHeight: rs(44),
+    borderRadius: rs(10),
     borderWidth: 1,
     borderColor: NeoTheme.colors.borderStrong,
     backgroundColor: "rgba(255,255,255,0.06)",
     color: NeoTheme.colors.text,
-    paddingHorizontal: 12,
+    paddingHorizontal: rs(12),
     fontFamily: NeoTheme.fonts.medium,
-    marginBottom: 8,
+    marginBottom: rs(8),
   },
   saveBtn: {
-    marginTop: 6,
-    minHeight: 40,
-    borderRadius: 10,
+    marginTop: rs(6),
+    minHeight: rs(40),
+    borderRadius: rs(10),
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: NeoTheme.colors.lime,
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: NeoTheme.colors.black,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 14,
+    fontSize: rf(14),
   },
   disabled: {
     opacity: 0.5,
@@ -197,16 +198,16 @@ const styles = StyleSheet.create({
   },
   inlineError: {
     color: NeoTheme.colors.danger,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.regular,
-    marginTop: 6,
-    paddingHorizontal: 2,
+    marginTop: rs(6),
+    paddingHorizontal: rs(2),
   },
   inlineSuccess: {
     color: NeoTheme.colors.lime,
-    fontSize: 12,
+    fontSize: rf(12),
     fontFamily: NeoTheme.fonts.semiBold,
-    marginTop: 6,
-    paddingHorizontal: 2,
+    marginTop: rs(6),
+    paddingHorizontal: rs(2),
   },
 });

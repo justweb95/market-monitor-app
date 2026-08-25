@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { PaywallGate } from "@/components/paywall-gate";
 import { NeoTheme } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import { DeviceProvider, useDevice } from "@/contexts/DeviceContext";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -176,7 +177,7 @@ function RootLayoutContent() {
           source={require("@/assets/images/logo.png")}
           style={appLoadingStyles.logo}
         />
-        <ActivityIndicator color={NeoTheme.colors.lime} size="large" style={{ marginTop: 24 }} />
+        <ActivityIndicator color={NeoTheme.colors.lime} size="large" style={{ marginTop: rs(24) }} />
       </View>
     );
   }
@@ -340,22 +341,22 @@ const appLoadingStyles = StyleSheet.create({
     backgroundColor: NeoTheme.colors.background,
   },
   logo: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
+    width: rs(96),
+    height: rs(96),
+    borderRadius: rs(24),
   },
   errorText: {
-    marginTop: 20,
-    marginHorizontal: 32,
+    marginTop: rs(20),
+    marginHorizontal: rs(32),
     textAlign: "center",
     color: NeoTheme.colors.textMuted,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 14,
+    fontSize: rf(14),
   },
   retryBtn: {
-    marginTop: 16,
-    minHeight: 44,
-    paddingHorizontal: 24,
+    marginTop: rs(16),
+    minHeight: rs(44),
+    paddingHorizontal: rs(24),
     borderRadius: NeoTheme.radius.sm,
     backgroundColor: NeoTheme.colors.lime,
     alignItems: "center",
@@ -364,6 +365,6 @@ const appLoadingStyles = StyleSheet.create({
   retryBtnText: {
     color: NeoTheme.colors.black,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 14,
+    fontSize: rf(14),
   },
 });

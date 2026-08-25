@@ -1,4 +1,5 @@
 import { NeoTheme, neoGlow } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -97,9 +98,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 18,
-    gap: 12,
+    marginTop: rs(8),
+    marginBottom: rs(18),
+    gap: rs(12),
   },
   headerLeftCluster: {
     flexDirection: "row",
@@ -109,13 +110,13 @@ const styles = StyleSheet.create({
   headerRightCluster: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: rs(8),
     flexShrink: 0,
   },
   backButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: rs(34),
+    height: rs(34),
+    borderRadius: rs(8),
     borderWidth: 1,
     borderColor: NeoTheme.colors.limeBorder,
     backgroundColor: "rgba(255,255,255,0.04)",
@@ -125,44 +126,44 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
+    gap: rs(12),
     flexShrink: 1,
   },
   brandCopy: {
     flexShrink: 1,
   },
   logoHex: {
-    width: 22,
-    height: 22,
+    width: rs(22),
+    height: rs(22),
     backgroundColor: NeoTheme.colors.lime,
-    borderRadius: 6,
+    borderRadius: rs(6),
     transform: [{ rotate: "45deg" }],
-    marginTop: 9,
+    marginTop: rs(9),
     ...neoGlow,
   },
   brandText: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 19,
-    lineHeight: 22,
+    fontSize: rf(19),
+    lineHeight: rf(22),
   },
   brandDescription: {
     color: NeoTheme.colors.textDim,
     fontFamily: NeoTheme.fonts.medium,
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 3,
+    fontSize: rf(11),
+    lineHeight: rf(14),
+    marginTop: rs(3),
   },
   rightPill: {
-    minHeight: 36,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    minHeight: rs(36),
+    paddingHorizontal: rs(12),
+    borderRadius: rs(8),
     borderWidth: 1,
     backgroundColor: "transparent",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: rs(6),
   },
   rightPillStatic: {
     backgroundColor: "transparent",
@@ -170,17 +171,17 @@ const styles = StyleSheet.create({
   rightLabel: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.semiBold,
-    fontSize: 13,
+    fontSize: rf(13),
   },
   countBadge: {
-    minWidth: 40,
-    minHeight: 24,
-    borderRadius: 3,
+    minWidth: rs(40),
+    minHeight: rs(24),
+    borderRadius: rs(3),
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: rs(8),
     backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   countBadgeDanger: {
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
   countText: {
     color: NeoTheme.colors.text,
     fontFamily: NeoTheme.fonts.bold,
-    fontSize: 11,
+    fontSize: rf(11),
   },
   countTextDanger: {
     color: "rgba(255, 49, 49, 1)",

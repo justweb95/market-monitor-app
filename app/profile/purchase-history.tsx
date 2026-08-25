@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { rf, rs } from "@/constants/responsive";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -31,22 +32,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NeoTheme.colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingHorizontal: rs(24),
+    paddingTop: rs(10),
   },
   card: {
-    borderRadius: 16,
+    borderRadius: rs(16),
     backgroundColor: NeoTheme.colors.surface,
     borderWidth: 1,
     borderColor: NeoTheme.colors.border,
-    padding: 24,
+    padding: rs(24),
     alignItems: "center",
-    gap: 10,
+    gap: rs(10),
     ...neoShadow,
   },
   text: {
     color: NeoTheme.colors.textMuted,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: NeoTheme.fonts.medium,
     textAlign: "center",
   },
