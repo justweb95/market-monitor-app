@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/app-header";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { findPackageForTier, priceLabelForTier } from "@/constants/plans";
 import { rf, rs } from "@/constants/responsive";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import type { PlanTier } from "@/hooks/useAccountProfile";
@@ -9,7 +10,7 @@ import { useDevice } from "@/contexts/DeviceContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -33,7 +34,6 @@ type PlanCard = {
   /** Koliko signala jos sme da stoji sacuvano u rezervi (nacrti/pauzirani). */
   drafts: number;
   rightLabel: string;
-  priceEur?: number;
 };
 
 const PLAY_STORE_SUBSCRIPTIONS_URL =
@@ -66,7 +66,6 @@ const PLANS: PlanCard[] = [
     alerts: 3,
     drafts: 3,
     rightLabel: "10€",
-    priceEur: 10,
   },
   {
     id: "SILVER",
@@ -77,7 +76,6 @@ const PLANS: PlanCard[] = [
     alerts: 6,
     drafts: 6,
     rightLabel: "15€",
-    priceEur: 15,
   },
   {
     id: "GOLD",
@@ -88,7 +86,6 @@ const PLANS: PlanCard[] = [
     alerts: 10,
     drafts: 10,
     rightLabel: "20€",
-    priceEur: 20,
   },
 ];
 
@@ -195,15 +192,18 @@ export default function PlanScreen() {
 
   const activePkg = useMemo(() => {
     if (activePlan.id === "DRUGARSKI") return null;
-    return offerings?.availablePackages.find((p) => {
-      const id = p.identifier.toLowerCase();
-      return (
-        (activePlan.id === "BRONZE" && id.includes("bronze")) ||
-        (activePlan.id === "SILVER" && id.includes("silver")) ||
-        (activePlan.id === "GOLD" && id.includes("gold"))
-      );
-    }) ?? null;
+    return findPackageForTier(offerings, activePlan.id);
   }, [activePlan.id, offerings]);
+
+  // Cena u listi planova dolazi iz Google Play-a preko RevenueCat-a; rezervna
+  // (hardkodovana) vrednost se vidi samo dok offerings nisu ucitani.
+  const planPriceLabel = useCallback(
+    (plan: PlanCard): string => {
+      if (plan.id === "DRUGARSKI") return plan.rightLabel;
+      return priceLabelForTier(findPackageForTier(offerings, plan.id), plan.id);
+    },
+    [offerings],
+  );
 
   const canManageSubscription =
     !isDrugarskiActive &&
@@ -367,7 +367,7 @@ export default function PlanScreen() {
                     {isActivePlan ? (
                       <Text style={styles.planActive}>Aktivno</Text>
                     ) : (
-                      <Text style={styles.planSoon}>{plan.rightLabel}</Text>
+                      <Text style={styles.planSoon}>{planPriceLabel(plan)}</Text>
                     )}
                   </Pressable>
                   );
@@ -476,7 +476,7 @@ export default function PlanScreen() {
                           <ActivityIndicator color={NeoTheme.colors.black} />
                         ) : (
                           <Text style={styles.buyBtnText}>
-                            Kupi {activePkg?.product.priceString ?? (activePlan.priceEur ? `${activePlan.priceEur}€` : "")} / mesečno
+                            Kupi {planPriceLabel(activePlan)} / mesečno
                           </Text>
                         )}
                       </Pressable>

@@ -9,6 +9,13 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { PaywallGate } from "@/components/paywall-gate";
 import { NeoTheme } from "@/constants/neo-theme";
+import {
+  PAID_TIERS,
+  TIER_ALERTS,
+  findPackageForTier,
+  priceLabelForTier,
+  type PaidTier,
+} from "@/constants/plans";
 import { rf, rs } from "@/constants/responsive";
 import { DeviceProvider, useDevice } from "@/contexts/DeviceContext";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
@@ -222,41 +229,24 @@ function RootLayoutContent() {
   const isLocked = profile?.isLocked ?? false;
   const trialDaysLeft = profile?.trialDaysLeft ?? 7;
 
+  // Cena se uzima iz RevenueCat-a (Google Play, lokalna valuta) — hardkodovana
+  // vrednost iz FALLBACK_PRICE se vidi samo dok offerings nisu ucitani.
   const planOptions: {
-    tier: "BRONZE" | "SILVER" | "GOLD";
+    tier: PaidTier;
     label: string;
     price: string;
     alerts: number;
     pkg: PurchasesPackage | null;
-  }[] = [
-    {
-      tier: "BRONZE",
-      label: "Bronze",
-      price: "10 €",
-      alerts: 3,
-      pkg:
-        offerings?.availablePackages.find((p) => p.identifier.toLowerCase().includes("bronze")) ??
-        null,
-    },
-    {
-      tier: "SILVER",
-      label: "Silver",
-      price: "15 €",
-      alerts: 6,
-      pkg:
-        offerings?.availablePackages.find((p) => p.identifier.toLowerCase().includes("silver")) ??
-        null,
-    },
-    {
-      tier: "GOLD",
-      label: "Gold",
-      price: "20 €",
-      alerts: 10,
-      pkg:
-        offerings?.availablePackages.find((p) => p.identifier.toLowerCase().includes("gold")) ??
-        null,
-    },
-  ];
+  }[] = PAID_TIERS.map((tier) => {
+    const pkg = findPackageForTier(offerings, tier);
+    return {
+      tier,
+      label: tier.charAt(0) + tier.slice(1).toLowerCase(),
+      price: priceLabelForTier(pkg, tier),
+      alerts: TIER_ALERTS[tier],
+      pkg,
+    };
+  });
 
   async function handlePurchase(pkg: PurchasesPackage): Promise<boolean> {
     if (!profile?.user?.id) {
