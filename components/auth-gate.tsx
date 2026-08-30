@@ -7,11 +7,11 @@ import {
   isErrorWithCode,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -32,6 +32,8 @@ type Props = {
           password: string;
         }
       | { googleIdToken: string },
+    /** Sta je korisnik radio - roditelj po tome bira poruku o uspehu. */
+    mode: Mode,
   ) => Promise<void>;
 };
 
@@ -59,6 +61,10 @@ export function AuthGate({ onSubmit }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Visina tastature: Android sa edge-to-edge ne skuplja prozor, pa se donji deo
+  // forme (dugme "Napravi nalog") inace zavuce ispod tastature.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
 
   const isLogin = mode === "login";
   const anySubmitting = submitting || googleSubmitting;
@@ -67,6 +73,26 @@ export function AuthGate({ onSubmit }: Props) {
     if (!GOOGLE_WEB_CLIENT_ID) return;
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  /** Podigne ceo ekran do dna forme da dugme za potvrdu ostane iznad tastature. */
+  const scrollToActions = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180);
+  };
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -95,7 +121,7 @@ export function AuthGate({ onSubmit }: Props) {
         return;
       }
 
-      await onSubmit({ googleIdToken: idToken });
+      await onSubmit({ googleIdToken: idToken }, mode);
     } catch (e) {
       if (isErrorWithCode(e) && e.code === statusCodes.IN_PROGRESS) {
         // Vec je u toku - ne prikazuj gresku, samo sacekaj prethodni pokusaj.
@@ -140,12 +166,15 @@ export function AuthGate({ onSubmit }: Props) {
 
     setSubmitting(true);
     try {
-      await onSubmit({
-        firstName: isLogin ? "" : trimmedFirstName,
-        lastName: isLogin ? "" : trimmedLastName,
-        email: trimmedEmail,
-        password,
-      });
+      await onSubmit(
+        {
+          firstName: isLogin ? "" : trimmedFirstName,
+          lastName: isLogin ? "" : trimmedLastName,
+          email: trimmedEmail,
+          password,
+        },
+        mode,
+      );
     } catch (e) {
       setError(
         e instanceof Error
@@ -161,14 +190,16 @@ export function AuthGate({ onSubmit }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.flex}>
         <ScrollView
-          contentContainerStyle={styles.container}
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.container,
+            keyboardHeight > 0 ? { paddingBottom: keyboardHeight + rs(24) } : null,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
         >
           <View style={styles.brandRow}>
             <Image source={require("@/assets/images/logo.png")} style={styles.logo} />
@@ -226,6 +257,7 @@ export function AuthGate({ onSubmit }: Props) {
                   autoCapitalize="words"
                   autoComplete="given-name"
                   editable={!anySubmitting}
+                  onFocus={scrollToActions}
                 />
                 <Text style={styles.label}>Prezime</Text>
                 <TextInput
@@ -240,6 +272,7 @@ export function AuthGate({ onSubmit }: Props) {
                   autoCapitalize="words"
                   autoComplete="family-name"
                   editable={!anySubmitting}
+                  onFocus={scrollToActions}
                 />
               </>
             )}
@@ -258,6 +291,7 @@ export function AuthGate({ onSubmit }: Props) {
               keyboardType="email-address"
               autoComplete="email"
               editable={!submitting}
+              onFocus={scrollToActions}
             />
             <Text style={styles.label}>Lozinka</Text>
             <TextInput
@@ -272,6 +306,7 @@ export function AuthGate({ onSubmit }: Props) {
               secureTextEntry
               autoComplete="password"
               editable={!submitting}
+              onFocus={scrollToActions}
               onSubmitEditing={handleSubmit}
               returnKeyType="go"
             />
@@ -288,7 +323,12 @@ export function AuthGate({ onSubmit }: Props) {
               ]}
             >
               {submitting ? (
-                <ActivityIndicator color={NeoTheme.colors.black} />
+                <View style={styles.submitBusyRow}>
+                  <ActivityIndicator color={NeoTheme.colors.black} />
+                  <Text style={styles.submitBtnText}>
+                    {isLogin ? "Prijavljujem..." : "Pravim nalog..."}
+                  </Text>
+                </View>
               ) : (
                 <Text style={styles.submitBtnText}>
                   {isLogin ? "Prijavi se" : "Napravi nalog"}
@@ -340,7 +380,7 @@ export function AuthGate({ onSubmit }: Props) {
               : "Kreiranjem naloga prihvatas Uslove koriscenja i Politiku privatnosti."}
           </Text>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -467,6 +507,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: NeoTheme.colors.lime,
+  },
+  submitBusyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: NeoTheme.spacing.xs,
   },
   submitBtnText: {
     color: NeoTheme.colors.black,

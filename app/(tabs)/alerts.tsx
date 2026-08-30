@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
-import { SerbiaRegionMap } from "@/components/serbia-region-map";
+import { LocationPicker } from "@/components/location-picker";
+import { CITY_BY_CODE, DEFAULT_RADIUS_KM } from "@/constants/serbia-cities";
 import { SERBIA_REGIONS, type RegionCode } from "@/constants/serbia-map";
 import { API_URL } from "@/constants/api";
 import { parseApiErrorMessage } from "@/constants/apiError";
@@ -55,6 +56,8 @@ type AlertItem = {
   bodyTypes?: string[];
   motoTypes?: string[];
   regions?: RegionCode[];
+  cities?: string[];
+  radiusKm?: number | null;
   ccmFrom?: number | null;
   ccmTo?: number | null;
   isActive: boolean;
@@ -343,7 +346,8 @@ export default function AlertsScreen() {
   const [fuelTypes, setFuelTypes] = useState<string[]>([]);
   const [bodyTypes, setBodyTypes] = useState<string[]>([]);
   const [motoTypes, setMotoTypes] = useState<string[]>([]);
-  const [regions, setRegions] = useState<RegionCode[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
   const [ccmFromText, setCcmFromText] = useState("");
   const [ccmToText, setCcmToText] = useState("");
   // Kad je postavljen, forma radi u rezimu izmene postojeceg signala (PATCH),
@@ -402,19 +406,19 @@ export default function AlertsScreen() {
         : 0;
   const isPlanLocked = alertLimit === 0;
   // Limit plana se odnosi na UKLJUCENE signale. Pauzirani signal ne zauzima
-  // aktivno mesto - ostaje sacuvan "u rezervi" (do jos toliko komada), pa
-  // korisnik moze da pauzira jedan i odmah napravi/ukljuci drugi.
+  // aktivno mesto - ostaje sacuvan "u rezervi", pa korisnik moze da pauzira
+  // jedan i odmah napravi/ukljuci drugi. Rezerva nema svoj limit: ograniceno je
+  // samo koliko signala ukupno sme da bude sacuvano (totalAlertLimit).
   const draftLimit = profile?.draftLimit ?? alertLimit;
   const totalAlertLimit = profile?.totalAlertLimit ?? alertLimit + draftLimit;
+  const savedCount = displayItems.length;
   const activeCount = displayItems.filter((item) => item.isActive).length;
   const activeLimitReached = !isPlanLocked && activeCount >= alertLimit;
   const totalLimitReached = !isPlanLocked && items.length >= totalAlertLimit;
-  // Kad su sva aktivna mesta popunjena, nov signal se cuva kao nacrt (rezerva).
+  // Kad su sva aktivna mesta popunjena, nov signal se automatski cuva u rezervu.
+  // Korisnik nema poseban izbor: ima li slobodnog aktivnog mesta, signal se
+  // odmah ukljucuje, u suprotnom ide u rezervu.
   const savingAsDraft = activeLimitReached && !totalLimitReached && !editingId;
-  // "U rezervu" ima smisla samo kad signal moze da se sacuva, a glavno dugme
-  // ga ne bi ionako sacuvalo kao rezervu.
-  const canSaveDraft =
-    !editingId && !savingAsDraft && !totalLimitReached && !isPlanLocked;
 
   const resetForm = useCallback(() => {
     setStep(0);
@@ -430,7 +434,8 @@ export default function AlertsScreen() {
     setFuelTypes([]);
     setBodyTypes([]);
     setMotoTypes([]);
-    setRegions([]);
+    setCities([]);
+    setRadiusKm(DEFAULT_RADIUS_KM);
     setCcmFromText("");
     setCcmToText("");
     setEditingId(null);
@@ -450,7 +455,8 @@ export default function AlertsScreen() {
     setFuelTypes(item.fuelTypes ?? []);
     setBodyTypes(item.bodyTypes ?? []);
     setMotoTypes(item.motoTypes ?? []);
-    setRegions(item.regions ?? []);
+    setCities(item.cities ?? []);
+    setRadiusKm(item.radiusKm && item.radiusKm > 0 ? item.radiusKm : DEFAULT_RADIUS_KM);
     setCcmFromText(item.ccmFrom != null ? String(item.ccmFrom) : "");
     setCcmToText(item.ccmTo != null ? String(item.ccmTo) : "");
     setYearFromText(item.yearFrom != null ? String(item.yearFrom) : "");
@@ -467,6 +473,7 @@ export default function AlertsScreen() {
         (item.bodyTypes?.length ?? 0) > 0 ||
         (item.motoTypes?.length ?? 0) > 0 ||
         (item.regions?.length ?? 0) > 0 ||
+        (item.cities?.length ?? 0) > 0 ||
         item.ccmFrom != null ||
         item.ccmTo != null,
     );
@@ -546,12 +553,6 @@ export default function AlertsScreen() {
   const toggleInList = (value: string, list: string[]): string[] =>
     list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 
-  const toggleRegion = useCallback((code: RegionCode) => {
-    setRegions((prev) =>
-      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code],
-    );
-  }, []);
-
   const yearFromNum = yearFromText.trim() ? Number(yearFromText) : null;
   const yearToNum = yearToText.trim() ? Number(yearToText) : null;
   const kmFromNum = kmFromText.trim() ? Number(kmFromText) : null;
@@ -595,11 +596,10 @@ export default function AlertsScreen() {
     (step === 1 && !isNameOk) ||
     (step === 2 && (!isPriceOk || !isPropertyOk || !isYearRangeOk || !isKmRangeOk || !isCcmRangeOk));
 
-  const onPrimary = useCallback(async (options?: { asDraft?: boolean }) => {
+  const onPrimary = useCallback(async () => {
     if (primaryDisabled) return;
-    // Signal se cuva u rezervu ili kad su aktivna mesta puna, ili kad je
-    // korisnik svesno kliknuo "U rezervu".
-    const asDraft = savingAsDraft || options?.asDraft === true;
+    // Signal ide u rezervu samo kad su sva aktivna mesta vec zauzeta.
+    const asDraft = savingAsDraft;
     if (step === 0) {
       setStep(1);
       return;
@@ -646,7 +646,13 @@ export default function AlertsScreen() {
         keywords: productName.trim().split(/\s+/).filter(Boolean),
         priceMax: isAllCategory ? null : Math.round(priceNum),
         locationText: "",
-        regions,
+        // Forma vise ne nudi izbor po regionima - nov signal koristi "grad +
+        // precnik". Stari signal koji jos ima regione zadrzava ih dok korisnik
+        // ne izabere gradove (tada polje saljemo prazno da se filteri ne slazu
+        // jedan preko drugog); zato se regions inace UOPSTE ne salje.
+        ...(cities.length > 0 ? { regions: [] } : {}),
+        cities,
+        radiusKm: cities.length > 0 ? radiusKm : null,
         propertyType: category === "NEKRETNINE" ? propertyType : null,
         yearFrom: showYearFilter ? yearFromNum : null,
         yearTo: showYearFilter ? yearToNum : null,
@@ -706,7 +712,8 @@ export default function AlertsScreen() {
     propertyType,
     priceNum,
     primaryDisabled,
-    regions,
+    cities,
+    radiusKm,
     productName,
     refreshProfile,
     resetForm,
@@ -823,8 +830,9 @@ export default function AlertsScreen() {
                       Dosegnut limit od {totalAlertLimit} signala
                     </Text>
                     <Text style={styles.maxCardText}>
-                      Plan ti dozvoljava {alertLimit} ukljucenih i jos {draftLimit} sacuvanih
-                      u rezervi. Obrisi neki postojeci signal da bi dodao nov.
+                      Plan ti dozvoljava ukupno {totalAlertLimit} sacuvanih signala, od
+                      cega {alertLimit} istovremeno ukljucenih. Obrisi neki postojeci
+                      signal da bi dodao nov.
                     </Text>
                   </View>
                 ) : (
@@ -983,8 +991,13 @@ export default function AlertsScreen() {
 
                         {showAdvanced && (
                           <View style={styles.advancedWrap}>
-                            <Text style={styles.label}>Lokacija - regioni (opciono)</Text>
-                            <SerbiaRegionMap selected={regions} onToggle={toggleRegion} />
+                            <Text style={styles.label}>Lokacija (opciono)</Text>
+                            <LocationPicker
+                              cities={cities}
+                              radiusKm={radiusKm}
+                              onChangeCities={setCities}
+                              onChangeRadius={setRadiusKm}
+                            />
 
                             {showMotoFilters && (
                               <>
@@ -1209,17 +1222,6 @@ export default function AlertsScreen() {
                         </LinearGradient>
                       </Pressable>
 
-                      {canSaveDraft && (
-                        <Pressable
-                          onPress={() => {
-                            void onPrimary({ asDraft: true });
-                          }}
-                          style={({ pressed }) => [styles.draftBtn, pressed && styles.pressed]}
-                        >
-                          <Text style={styles.draftBtnText}>U rezervu</Text>
-                        </Pressable>
-                      )}
-
                       {(step !== 0 || category) && (
                         <Pressable
                           onPress={resetForm}
@@ -1238,8 +1240,8 @@ export default function AlertsScreen() {
                   <Text style={styles.sectionTitle}>Moji signali</Text>
                   {!isPlanLocked && (
                     <Text style={styles.sectionCount}>
-                      {activeCount}/{alertLimit} ukljucenih · {items.length - activeCount}/
-                      {draftLimit} u rezervi
+                      {activeCount}/{alertLimit} ukljucenih · {savedCount - activeCount} u
+                      rezervi · {savedCount}/{totalAlertLimit} ukupno
                     </Text>
                   )}
                 </View>
@@ -1268,9 +1270,18 @@ export default function AlertsScreen() {
                           : "Bez ogranicenja cene"}
                       </Text>
                     </View>
-                    {(item.locationText || item.regions?.length || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length || item.motoTypes?.length || item.ccmFrom || item.ccmTo) && (
+                    {(item.locationText || item.regions?.length || item.cities?.length || item.propertyType || item.yearFrom || item.yearTo || item.kmFrom || item.kmTo || item.fuelTypes?.length || item.bodyTypes?.length || item.motoTypes?.length || item.ccmFrom || item.ccmTo) && (
                       <Text style={styles.alertFiltersText}>
                         {[
+                          item.cities?.length
+                            ? `Lokacija: ${item.cities
+                                .map((code) => CITY_BY_CODE[code]?.label ?? code)
+                                .join(", ")}${
+                                item.radiusKm && item.radiusKm > 0
+                                  ? ` (+${item.radiusKm} km)`
+                                  : ""
+                              }`
+                            : null,
                           item.regions?.length
                             ? `Regioni: ${item.regions
                                 .map(
@@ -1754,20 +1765,6 @@ const styles = StyleSheet.create({
   },
   primaryBtnTextActive: {
     color: NeoTheme.colors.black,
-  },
-  draftBtn: {
-    minHeight: rs(52),
-    paddingHorizontal: rs(16),
-    borderRadius: rs(14),
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  draftBtnText: {
-    color: NeoTheme.colors.text,
-    fontSize: rf(14),
-    fontFamily: NeoTheme.fonts.semiBold,
   },
   ghostBtn: {
     minHeight: rs(52),

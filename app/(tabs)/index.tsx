@@ -141,7 +141,10 @@ export default function HomeScreen() {
     return visibleItems;
   }, [visibleItems]);
 
-  const displaySignalCount = profile?.signalCount ?? 0;
+  // Hero kartica prikazuje AKTIVNE signale naspram limita plana. Ukupan broj
+  // sacuvanih (aktivni + rezerva) ide do totalAlertLimit i nije isti broj, pa
+  // bi signalCount/alertLimit umelo da ispadne "5/3".
+  const displaySignalCount = profile?.activeSignalCount ?? 0;
   const displaySignalLimit =
     profile?.alertLimit && profile.alertLimit > 0
       ? profile.alertLimit

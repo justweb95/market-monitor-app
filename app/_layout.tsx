@@ -4,6 +4,7 @@ import {
   ChakraPetch_600SemiBold,
   ChakraPetch_700Bold,
 } from "@expo-google-fonts/chakra-petch";
+import { AppToast, type ToastMessage } from "@/components/app-toast";
 import { AuthGate } from "@/components/auth-gate";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { OnboardingModal } from "@/components/onboarding-modal";
@@ -101,6 +102,10 @@ function RootLayoutContent() {
   const managementUrl = getManagementURL();
   const [syncingEntitlement, setSyncingEntitlement] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // Potvrda posle prijave/registracije. Drzi se ovde (a ne u AuthGate-u) jer
+  // AuthGate nestaje istog trenutka kad se nalog poveze, pa poruka mora da
+  // prezivi taj prelaz.
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_SEEN_KEY)
@@ -216,11 +221,19 @@ function RootLayoutContent() {
     return (
       <ThemeProvider value={appTheme}>
         <AuthGate
-          onSubmit={async (account) => {
+          onSubmit={async (account, mode) => {
             await linkAccountToDevice(account);
             await refreshProfile();
+            setToast({
+              kind: "success",
+              text:
+                mode === "login"
+                  ? "Uspesno si prijavljen. Dobrodosao nazad!"
+                  : "Nalog je napravljen. Dobrodosao u Lovac na Oglase!",
+            });
           }}
         />
+        <AppToast toast={toast} onHide={() => setToast(null)} />
         <StatusBar style="light" />
       </ThemeProvider>
     );
@@ -318,6 +331,7 @@ function RootLayoutContent() {
         </Stack>
       </PaywallGate>
       <OnboardingModal visible={showOnboarding} onDismiss={dismissOnboarding} />
+      <AppToast toast={toast} onHide={() => setToast(null)} />
       <StatusBar style="light" />
     </ThemeProvider>
   );
