@@ -331,7 +331,12 @@ function RootLayoutContent() {
         </Stack>
       </PaywallGate>
       <OnboardingModal visible={showOnboarding} onDismiss={dismissOnboarding} />
-      <AppToast toast={toast} onHide={() => setToast(null)} />
+      {/* OnboardingModal je RN Modal - crta se u zasebnom native prozoru IZNAD svega,
+          pa i iznad toasta bez obzira na elevation. Na svezoj instalaciji se otvara
+          bas u trenutku kad stigne potvrda o prijavi, pokrio bi je, a tajmer bi je
+          ugasio neprimecenu. Zato toast cekamo dok se onboarding ne zatvori: dok
+          nije montiran, tajmer u AppToast-u i ne krece. */}
+      {!showOnboarding && <AppToast toast={toast} onHide={() => setToast(null)} />}
       <StatusBar style="light" />
     </ThemeProvider>
   );
