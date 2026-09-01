@@ -20,7 +20,10 @@ import {
 import { rf, rs } from "@/constants/responsive";
 import { DeviceProvider, useDevice } from "@/contexts/DeviceContext";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
-import type { AccountProfile } from "@/hooks/useAccountProfile";
+import {
+  entitlementSignature,
+  refreshEntitlementState,
+} from "@/constants/entitlement";
 import { useSubscription } from "@/hooks/useSubscription";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
@@ -43,23 +46,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 const ONBOARDING_SEEN_KEY = "market_monitor_onboarding_seen_v1";
-
-// Koliko se ceka izmedju provera profila dok kupovina ne stigne do naseg backenda.
-// Put je Google -> RevenueCat webhook -> nas server, pa zna da potraje vise od par sekundi.
-const ENTITLEMENT_POLL_DELAYS_MS = [700, 1000, 1400, 2000, 2800, 3600];
-
-// Otisak stanja pretplate. Menja se tek kad webhook upise novi plan, pa sluzi kao
-// pouzdan signal da je kupovina stvarno propagirala - za razliku od `isLocked`.
-function entitlementSignature(snapshot: AccountProfile | null): string {
-  if (!snapshot) return "";
-  return [
-    snapshot.planTier,
-    snapshot.subscription?.tier ?? "",
-    snapshot.subscription?.status ?? "",
-    snapshot.subscription?.productId ?? "",
-    snapshot.subscription?.renewsAt ?? "",
-  ].join("|");
-}
 
 const appTheme = {
   ...DarkTheme,
@@ -138,35 +124,6 @@ function RootLayoutContent() {
   const dismissOnboarding = () => {
     setShowOnboarding(false);
     AsyncStorage.setItem(ONBOARDING_SEEN_KEY, "true").catch(() => {});
-  };
-
-  const wait = (ms: number) => new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), ms);
-  });
-
-  // `previousSignature` je stanje pretplate PRE kupovine. Ceka se dok se ono stvarno
-  // ne promeni. Ranije se cekalo samo na `!isLocked`, sto radi jedino kad se kupuje sa
-  // zakljucanog paywall-a; kod nadogradnje (probni period ili nizi plan) `isLocked` je
-  // vec bio false, pa se petlja zavrsavala u prvom prolazu - jos pre nego sto webhook
-  // upise novi plan - i ekran je ostajao na starom planu.
-  const refreshEntitlementState = async (previousSignature?: string) => {
-    let latest = await refreshProfile();
-
-    for (const delay of ENTITLEMENT_POLL_DELAYS_MS) {
-      const settled =
-        previousSignature === undefined
-          ? !!latest && !latest.isLocked
-          : !!latest && entitlementSignature(latest) !== previousSignature;
-
-      if (settled) {
-        return latest;
-      }
-
-      await wait(delay);
-      latest = await refreshProfile();
-    }
-
-    return latest;
   };
 
   useEffect(() => {
@@ -312,7 +269,7 @@ function RootLayoutContent() {
 
     setSyncingEntitlement(true);
     try {
-      const nextProfile = await refreshEntitlementState(previousSignature);
+      const nextProfile = await refreshEntitlementState(refreshProfile, previousSignature);
       return !!nextProfile && !nextProfile.isLocked;
     } finally {
       setSyncingEntitlement(false);
@@ -327,7 +284,7 @@ function RootLayoutContent() {
 
     setSyncingEntitlement(true);
     try {
-      const nextProfile = await refreshEntitlementState(previousSignature);
+      const nextProfile = await refreshEntitlementState(refreshProfile, previousSignature);
       return !!nextProfile && !nextProfile.isLocked;
     } finally {
       setSyncingEntitlement(false);

@@ -2,6 +2,10 @@ import { AppHeader } from "@/components/app-header";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import {
+  entitlementSignature,
+  refreshEntitlementState,
+} from "@/constants/entitlement";
 import { findPackageForTier, priceLabelForTier } from "@/constants/plans";
 import { rf, rs } from "@/constants/responsive";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
@@ -9,7 +13,7 @@ import type { PlanTier } from "@/hooks/useAccountProfile";
 import { useDevice } from "@/contexts/DeviceContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -103,26 +107,17 @@ export default function PlanScreen() {
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [cancellingDrugarski, setCancellingDrugarski] = useState(false);
+  // Poruka posle kupovine pretplate (uspeh / "jos se aktivira").
+  const [purchaseMsg, setPurchaseMsg] = useState<{ kind: "success" | "info"; text: string } | null>(null);
   const managementUrl = getManagementURL();
 
-  const wait = (ms: number) => new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), ms);
-  });
-
-  const refreshEntitlementState = async () => {
-    let latest = await refreshProfile();
-
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      if (latest && !latest.isLocked) {
-        return latest;
-      }
-
-      await wait(1200);
-      latest = await refreshProfile();
-    }
-
-    return latest;
-  };
+  // Kad se korisnik vrati na ekran (npr. dok se ceka da webhook upise novi plan
+  // posle kupovine), povuci svez profil da se prikaze tacan plan.
+  useFocusEffect(
+    useCallback(() => {
+      void refreshProfile();
+    }, [refreshProfile]),
+  );
 
   const isDrugarskiActive = useMemo(
     () => profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE,
@@ -351,7 +346,10 @@ export default function PlanScreen() {
                   return (
                   <Pressable
                     key={plan.id}
-                    onPress={() => setSelectedPlan(plan.id)}
+                    onPress={() => {
+                      setSelectedPlan(plan.id);
+                      setPurchaseMsg(null);
+                    }}
                     style={({ pressed }) => [
                       styles.planRow,
                       { borderColor: plan.accent },
@@ -458,11 +456,35 @@ export default function PlanScreen() {
                           const confirmed = await confirmSubscriptionDisclosure();
                           if (!confirmed) return;
 
+                          setPurchaseMsg(null);
+                          // Otisak pretplate PRE kupovine - `refreshEntitlementState`
+                          // ceka dok se stanje na backendu stvarno ne promeni. Bez
+                          // ovoga (kad je `isLocked` vec `false` - aktivan probni
+                          // period ili nadogradnja) petlja bi izasla u prvom prolazu
+                          // i ekran bi ostao na starom planu (kupis SILVER, pise BRONZE).
+                          const previousSignature = entitlementSignature(profile);
+
                           const ok = await purchasePackage(activePkg);
                           if (ok) {
                             setSyncing(true);
                             try {
-                              await refreshEntitlementState();
+                              const next = await refreshEntitlementState(
+                                refreshProfile,
+                                previousSignature,
+                              );
+                              const changed =
+                                entitlementSignature(next) !== previousSignature;
+                              if (changed && next?.planTier && next.planTier !== "FREE") {
+                                setPurchaseMsg({
+                                  kind: "success",
+                                  text: `Plan je aktiviran: ${PLAN_LABELS[next.planTier]}.`,
+                                });
+                              } else {
+                                setPurchaseMsg({
+                                  kind: "info",
+                                  text: "Kupovina je primljena. Aktivacija plana zna da potraje koji trenutak — novi plan će se prikazati čim Google Play potvrdi uplatu (izađi i vrati se na ovaj ekran).",
+                                });
+                              }
                             } finally {
                               setSyncing(false);
                             }
@@ -481,6 +503,17 @@ export default function PlanScreen() {
                         )}
                       </Pressable>
                     )}
+                    {purchaseMsg ? (
+                      <Text
+                        style={
+                          purchaseMsg.kind === "success"
+                            ? styles.inlineSuccess
+                            : styles.inlineInfo
+                        }
+                      >
+                        {purchaseMsg.text}
+                      </Text>
+                    ) : null}
                   </>
                 )}
               </View>
@@ -736,6 +769,14 @@ const styles = StyleSheet.create({
     fontSize: rf(12),
     fontFamily: NeoTheme.fonts.semiBold,
     marginTop: rs(6),
+    paddingHorizontal: rs(2),
+  },
+  inlineInfo: {
+    color: NeoTheme.colors.textMuted,
+    fontSize: rf(12),
+    lineHeight: rf(17),
+    fontFamily: NeoTheme.fonts.medium,
+    marginTop: rs(8),
     paddingHorizontal: rs(2),
   },
 });
