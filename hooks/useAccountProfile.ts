@@ -249,6 +249,33 @@ export function useAccountProfile(deviceId: string | null) {
     return unsubscribe;
   }, [deviceId, refresh]);
 
+  // Trajno brise nalog. Potvrda je ukucana email adresa (a ne lozinka - Google nalozi
+  // imaju nasumican hash koji korisnik nikad nije video). Posle uspeha lokalna kesirana
+  // kopija profila se cisti da ekrani ne bi nakratko prikazali obrisan nalog.
+  const deleteAccount = useCallback(
+    async (confirmEmail: string) => {
+      if (!deviceId) {
+        throw new Error("Device nije registrovan");
+      }
+
+      const res = await fetch(`${API_URL}/account/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId, confirmEmail }),
+      });
+
+      if (!res.ok) {
+        throw new Error(
+          await parseApiErrorMessage(res, "Brisanje naloga nije uspelo. Pokušaj ponovo."),
+        );
+      }
+
+      profileStores.delete(deviceId);
+      emit(deviceId);
+    },
+    [deviceId],
+  );
+
   return {
     profile,
     loading,
@@ -258,5 +285,6 @@ export function useAccountProfile(deviceId: string | null) {
     updateProfile,
     redeemBronzeCode,
     cancelDrugarskiCode,
+    deleteAccount,
   };
 }

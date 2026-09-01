@@ -10,6 +10,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="support" />
       <Stack.Screen name="about" />
+      <Stack.Screen name="delete-account" />
     </Stack>
   );
 }

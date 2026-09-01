@@ -1,10 +1,11 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
+import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type MenuItem = {
@@ -30,6 +31,20 @@ const MENU_ITEMS: MenuItem[] = [
 
 export default function ProfileMenuScreen() {
   const router = useRouter();
+  const { invalidateDeviceRegistration } = useDevice();
+
+  // Odjava samo zaboravlja lokalnu registraciju uredjaja. Nalog i signali ostaju na
+  // serveru; app pada na ekran za prijavu jer profil vise nema povezanog korisnika.
+  function confirmLogout() {
+    Alert.alert("Odjaviti se?", "Signali i nalog ostaju sačuvani. Možeš se prijaviti ponovo.", [
+      { text: "Odustani", style: "cancel" },
+      {
+        text: "Odjavi se",
+        style: "destructive",
+        onPress: () => void invalidateDeviceRegistration(),
+      },
+    ]);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -50,6 +65,27 @@ export default function ProfileMenuScreen() {
               </View>
             </Pressable>
           ))}
+
+          <Pressable
+            onPress={() => router.push("/profile/delete-account")}
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+          >
+            <View style={styles.row}>
+              <Ionicons name="trash-outline" size={20} color={NeoTheme.colors.danger} />
+              <Text style={[styles.title, styles.dangerTitle]}>Obriši nalog</Text>
+              <Ionicons name="chevron-forward" size={18} color={NeoTheme.colors.textMuted} />
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={confirmLogout}
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+          >
+            <View style={styles.row}>
+              <Ionicons name="log-out-outline" size={20} color={NeoTheme.colors.textMuted} />
+              <Text style={styles.title}>Odjavi se</Text>
+            </View>
+          </Pressable>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -89,6 +125,9 @@ const styles = StyleSheet.create({
     color: NeoTheme.colors.text,
     fontSize: rf(16),
     fontFamily: NeoTheme.fonts.semiBold,
+  },
+  dangerTitle: {
+    color: NeoTheme.colors.danger,
   },
   pressed: {
     opacity: 0.84,
