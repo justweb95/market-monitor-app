@@ -2,8 +2,10 @@ import { REVENUECAT_ANDROID_KEY, REVENUECAT_IOS_KEY } from "@/constants/env";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import Purchases, {
+  PRORATION_MODE,
   PURCHASES_ERROR_CODE,
   type CustomerInfo,
+  type GoogleProductChangeInfo,
   type PurchasesOffering,
   type PurchasesPackage,
 } from "react-native-purchases";
@@ -46,6 +48,43 @@ export type SubscriptionState = {
   pending: boolean;
   error: string | null;
 };
+
+/** `market_monitor_silver_monthly:silver-monthly` -> `market_monitor_silver_monthly`. */
+function baseProductId(identifier: string): string {
+  return identifier.split(":")[0];
+}
+
+/**
+ * Google Play tretira svaku pretplatu kao zaseban proizvod. Ako se nova kupi bez podatka o
+ * staroj, korisnik ostane pretplacen na OBE i placa obe. Zato pri prelasku na drugi plan mora
+ * da se prosledi `oldProductIdentifier` - tek tada Play zameni staru pretplatu novom.
+ *
+ * `IMMEDIATE_WITH_TIME_PRORATION` je Google-ov podrazumevani rezim i jedini koji radi i za
+ * nadogradnju i za prelazak na nizi plan: ostatak vec placenog perioda se preracuna u vreme.
+ */
+async function resolveGoogleProductChange(
+  pkg: PurchasesPackage,
+): Promise<GoogleProductChangeInfo | null> {
+  if (Platform.OS !== "android") return null;
+
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    const target = baseProductId(pkg.product.identifier);
+    const oldProductIdentifier = customerInfo.activeSubscriptions.find(
+      (identifier) => baseProductId(identifier) !== target,
+    );
+    if (!oldProductIdentifier) return null;
+
+    return {
+      oldProductIdentifier,
+      prorationMode: PRORATION_MODE.IMMEDIATE_WITH_TIME_PRORATION,
+    };
+  } catch (e) {
+    // Ako se stanje ne moze procitati, bolje pustiti obicnu kupovinu nego je blokirati.
+    console.warn("[RC] Ne mogu da procitam aktivne pretplate, kupovina ide bez zamene", e);
+    return null;
+  }
+}
 
 function hasAnyActiveEntitlement(customerInfo: CustomerInfo): boolean {
   if (customerInfo.activeSubscriptions.length > 0) {
@@ -122,7 +161,16 @@ export function useSubscription(userId?: string) {
     setState((s) => ({ ...s, purchasing: true, pending: false, error: null }));
     try {
       console.log("[RC] Pokretanje kupovine:", pkg.identifier);
-      await Purchases.purchasePackage(pkg);
+      const productChange = await resolveGoogleProductChange(pkg);
+      if (productChange) {
+        console.log(
+          "[RC] Zamena pretplate:",
+          productChange.oldProductIdentifier,
+          "->",
+          pkg.product.identifier,
+        );
+      }
+      await Purchases.purchasePackage(pkg, null, productChange);
       const customerInfo = await Purchases.getCustomerInfo();
       const hasAccess = hasAnyActiveEntitlement(customerInfo);
       console.log("[RC] Kupovina završena, entitlement aktivan:", hasAccess);

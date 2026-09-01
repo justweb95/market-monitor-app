@@ -878,21 +878,31 @@ export default function AlertsScreen() {
                               pressed && styles.pressed,
                             ]}
                           >
-                            <View style={styles.categoryPillRow}>
-                              <Text
+                            <Text
+                              style={[
+                                styles.categoryPillText,
+                                category === option.value && styles.categoryPillTextActive,
+                              ]}
+                            >
+                              {option.label}
+                            </Text>
+                            {option.beta && (
+                              <View
                                 style={[
-                                  styles.categoryPillText,
-                                  category === option.value && styles.categoryPillTextActive,
+                                  styles.betaBadge,
+                                  category === option.value && styles.betaBadgeActive,
                                 ]}
                               >
-                                {option.label}
-                              </Text>
-                              {option.beta && (
-                                <View style={styles.betaBadge}>
-                                  <Text style={styles.betaBadgeText}>BETA</Text>
-                                </View>
-                              )}
-                            </View>
+                                <Text
+                                  style={[
+                                    styles.betaBadgeText,
+                                    category === option.value && styles.betaBadgeTextActive,
+                                  ]}
+                                >
+                                  BETA
+                                </Text>
+                              </View>
+                            )}
                           </Pressable>
                         ))}
                       </View>
@@ -1582,6 +1592,7 @@ const styles = StyleSheet.create({
     gap: rs(10),
   },
   categoryPill: {
+    position: "relative",
     minWidth: "48%",
     backgroundColor: NeoTheme.colors.surfaceStrong,
     borderWidth: 1,
@@ -1594,12 +1605,6 @@ const styles = StyleSheet.create({
     backgroundColor: NeoTheme.colors.lime,
     borderColor: NeoTheme.colors.lime,
   },
-  categoryPillRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: rs(8),
-  },
   categoryPillText: {
     color: NeoTheme.colors.text,
     fontSize: rf(13),
@@ -1609,6 +1614,9 @@ const styles = StyleSheet.create({
     color: NeoTheme.colors.black,
   },
   betaBadge: {
+    position: "absolute",
+    top: rs(6),
+    right: rs(6),
     paddingHorizontal: rs(7),
     paddingVertical: rs(2),
     borderRadius: 999,
@@ -1616,10 +1624,17 @@ const styles = StyleSheet.create({
     borderColor: NeoTheme.colors.lime,
     backgroundColor: "rgba(215,242,13,0.16)",
   },
+  betaBadgeActive: {
+    borderColor: NeoTheme.colors.black,
+    backgroundColor: "rgba(0,0,0,0.12)",
+  },
   betaBadgeText: {
     color: NeoTheme.colors.lime,
     fontSize: rf(10),
     fontFamily: NeoTheme.fonts.bold,
+  },
+  betaBadgeTextActive: {
+    color: NeoTheme.colors.black,
   },
   inputBlock: {
     marginTop: rs(2),
