@@ -1,18 +1,19 @@
 import { AppHeader } from "@/components/app-header";
+import { CutButton } from "@/components/cut-button";
+import { CutCard } from "@/components/cut-card";
 import { LocationPicker } from "@/components/location-picker";
 import { CITY_BY_CODE, DEFAULT_RADIUS_KM } from "@/constants/serbia-cities";
 import { SERBIA_REGIONS, type RegionCode } from "@/constants/serbia-map";
 import { API_URL } from "@/constants/api";
 import { parseApiErrorMessage } from "@/constants/apiError";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
-import { NeoTheme, neoGlow, neoShadow } from "@/constants/neo-theme";
+import { NeoTheme, neoGlow } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
 import { rf, rs } from "@/constants/responsive";
 import { normalizeSearchText } from "@/constants/text";
 import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -309,6 +310,49 @@ function getCategoryIcon(category: Category): React.ComponentProps<typeof Ionico
   if (category === "NEKRETNINE") return "business";
   if (category === "SVE") return "apps";
   return "radio";
+}
+
+/**
+ * Red pilula za izbor (tip motora / gorivo / karoserija / tip nekretnine).
+ * Sve cetiri liste u formi dele identican izgled i ponasanje - jedina razlika
+ * je da li je izbor jedan (propertyType) ili vise (fuelTypes/bodyTypes/motoTypes),
+ * sto poziva sam odlucuje preko `isSelected`/`onToggle`.
+ */
+function ChipRow({
+  options,
+  isSelected,
+  onToggle,
+}: {
+  options: { value: string; label: string }[];
+  isSelected: (value: string) => boolean;
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <View style={styles.inlinePickerRow}>
+      {options.map((option) => {
+        const active = isSelected(option.value);
+        return (
+          <CutCard
+            key={option.value}
+            onPress={() => onToggle(option.value)}
+            notch={rs(6)}
+            fillColor={active ? NeoTheme.colors.lime : NeoTheme.colors.inputFill}
+            cutoutColor={NeoTheme.colors.surfaceSolid}
+            style={styles.inlinePickerChip}
+          >
+            <Text
+              style={[
+                styles.inlinePickerChipText,
+                active && styles.inlinePickerChipTextActive,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </CutCard>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function AlertsScreen() {
@@ -770,12 +814,7 @@ export default function AlertsScreen() {
                   rightCount={`${profile?.activeSignalCount ?? activeCount}/${alertLimit}`}
                 />
 
-                <LinearGradient
-                  colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0.06)"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.heroCard}
-                >
+                <View style={styles.heroCard}>
                   <View style={styles.heroCopy}>
                     <Text style={styles.heroEyebrow}>Lovac na Oglase</Text>
                     <Text style={styles.heroTitle}>Podesi signal za sledeci dobar oglas.</Text>
@@ -787,7 +826,7 @@ export default function AlertsScreen() {
                     <Text style={styles.heroMetaLabel}>Korak</Text>
                     <Text style={styles.heroMetaValue}>{step + 1}/3</Text>
                   </View>
-                </LinearGradient>
+                </View>
 
                 {notificationMode === "mock" && (
                   <View style={styles.infoBox}>
@@ -866,17 +905,17 @@ export default function AlertsScreen() {
                     {(step === 0 || !!editingId) && (
                       <View style={styles.categoryGrid}>
                         {CATEGORY_OPTIONS.map((option) => (
-                          <Pressable
+                          <CutCard
                             key={option.value}
                             onPress={() => {
                               setCategory(option.value);
                               if (formError) setFormError(null);
                             }}
-                            style={({ pressed }) => [
-                              styles.categoryPill,
-                              category === option.value && styles.categoryPillActive,
-                              pressed && styles.pressed,
-                            ]}
+                            fillColor={
+                              category === option.value ? NeoTheme.colors.lime : NeoTheme.colors.inputFill
+                            }
+                            cutoutColor={NeoTheme.colors.surfaceSolid}
+                            style={styles.categoryPill}
                           >
                             <Text
                               style={[
@@ -903,7 +942,7 @@ export default function AlertsScreen() {
                                 </Text>
                               </View>
                             )}
-                          </Pressable>
+                          </CutCard>
                         ))}
                       </View>
                     )}
@@ -965,39 +1004,22 @@ export default function AlertsScreen() {
                         {category === "NEKRETNINE" && (
                           <View style={styles.inlinePickerWrap}>
                             <Text style={styles.label}>Tip nekretnine (obavezno)</Text>
-                            <View style={styles.inlinePickerRow}>
-                              {PROPERTY_OPTIONS.map((option) => (
-                                <Pressable
-                                  key={option.value}
-                                  onPress={() => setPropertyType(option.value)}
-                                  style={({ pressed }) => [
-                                    styles.inlinePickerChip,
-                                    propertyType === option.value && styles.inlinePickerChipActive,
-                                    pressed && styles.pressed,
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.inlinePickerChipText,
-                                      propertyType === option.value && styles.inlinePickerChipTextActive,
-                                    ]}
-                                  >
-                                    {option.label}
-                                  </Text>
-                                </Pressable>
-                              ))}
-                            </View>
+                            <ChipRow
+                              options={PROPERTY_OPTIONS}
+                              isSelected={(value) => propertyType === value}
+                              onToggle={(value) => setPropertyType(value as PropertyType)}
+                            />
                           </View>
                         )}
 
-                        <Pressable
+                        <CutButton
+                          label={showAdvanced ? "Sakrij vise opcija" : "Prikazi vise opcija"}
+                          variant="ghost"
+                          notch={12}
+                          cutoutColor={NeoTheme.colors.surfaceSolid}
                           onPress={() => setShowAdvanced((prev) => !prev)}
-                          style={({ pressed }) => [styles.advancedToggle, pressed && styles.pressed]}
-                        >
-                          <Text style={styles.advancedToggleText}>
-                            {showAdvanced ? "Sakrij vise opcija" : "Prikazi vise opcija"}
-                          </Text>
-                        </Pressable>
+                          style={styles.advancedToggle}
+                        />
 
                         {showAdvanced && (
                           <View style={styles.advancedWrap}>
@@ -1012,32 +1034,13 @@ export default function AlertsScreen() {
                             {showMotoFilters && (
                               <>
                                 <Text style={styles.label}>Tip motora (opciono)</Text>
-                                <View style={styles.inlinePickerRow}>
-                                  {MOTO_TYPE_OPTIONS.map((option) => (
-                                    <Pressable
-                                      key={option.value}
-                                      onPress={() =>
-                                        setMotoTypes((prev) => toggleInList(option.value, prev))
-                                      }
-                                      style={({ pressed }) => [
-                                        styles.inlinePickerChip,
-                                        motoTypes.includes(option.value) &&
-                                          styles.inlinePickerChipActive,
-                                        pressed && styles.pressed,
-                                      ]}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.inlinePickerChipText,
-                                          motoTypes.includes(option.value) &&
-                                            styles.inlinePickerChipTextActive,
-                                        ]}
-                                      >
-                                        {option.label}
-                                      </Text>
-                                    </Pressable>
-                                  ))}
-                                </View>
+                                <ChipRow
+                                  options={MOTO_TYPE_OPTIONS}
+                                  isSelected={(value) => motoTypes.includes(value)}
+                                  onToggle={(value) =>
+                                    setMotoTypes((prev) => toggleInList(value, prev))
+                                  }
+                                />
 
                                 <Text style={styles.label}>Kubikaza u ccm (opciono)</Text>
                                 <View style={styles.rangeRow}>
@@ -1064,60 +1067,22 @@ export default function AlertsScreen() {
                             {showVehicleFilters && (
                               <>
                                 <Text style={styles.label}>Vrsta goriva (opciono)</Text>
-                                <View style={styles.inlinePickerRow}>
-                                  {FUEL_OPTIONS.map((option) => (
-                                    <Pressable
-                                      key={option.value}
-                                      onPress={() =>
-                                        setFuelTypes((prev) => toggleInList(option.value, prev))
-                                      }
-                                      style={({ pressed }) => [
-                                        styles.inlinePickerChip,
-                                        fuelTypes.includes(option.value) &&
-                                          styles.inlinePickerChipActive,
-                                        pressed && styles.pressed,
-                                      ]}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.inlinePickerChipText,
-                                          fuelTypes.includes(option.value) &&
-                                            styles.inlinePickerChipTextActive,
-                                        ]}
-                                      >
-                                        {option.label}
-                                      </Text>
-                                    </Pressable>
-                                  ))}
-                                </View>
+                                <ChipRow
+                                  options={FUEL_OPTIONS}
+                                  isSelected={(value) => fuelTypes.includes(value)}
+                                  onToggle={(value) =>
+                                    setFuelTypes((prev) => toggleInList(value, prev))
+                                  }
+                                />
 
                                 <Text style={styles.label}>Tip karoserije (opciono)</Text>
-                                <View style={styles.inlinePickerRow}>
-                                  {BODY_OPTIONS.map((option) => (
-                                    <Pressable
-                                      key={option.value}
-                                      onPress={() =>
-                                        setBodyTypes((prev) => toggleInList(option.value, prev))
-                                      }
-                                      style={({ pressed }) => [
-                                        styles.inlinePickerChip,
-                                        bodyTypes.includes(option.value) &&
-                                          styles.inlinePickerChipActive,
-                                        pressed && styles.pressed,
-                                      ]}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.inlinePickerChipText,
-                                          bodyTypes.includes(option.value) &&
-                                            styles.inlinePickerChipTextActive,
-                                        ]}
-                                      >
-                                        {option.label}
-                                      </Text>
-                                    </Pressable>
-                                  ))}
-                                </View>
+                                <ChipRow
+                                  options={BODY_OPTIONS}
+                                  isSelected={(value) => bodyTypes.includes(value)}
+                                  onToggle={(value) =>
+                                    setBodyTypes((prev) => toggleInList(value, prev))
+                                  }
+                                />
 
                                 {(fuelTypes.length > 0 || bodyTypes.length > 0) && (
                                   <View style={styles.infoBoxInline}>
@@ -1211,36 +1176,25 @@ export default function AlertsScreen() {
                     {formError && <Text style={styles.formError}>{formError}</Text>}
 
                     <View style={styles.actionsRow}>
-                      <Pressable
-                        onPress={() => {
-                          void onPrimary();
-                        }}
+                      <CutButton
+                        label={primaryLabel}
+                        variant="lime"
                         disabled={primaryDisabled}
-                        style={({ pressed }) => [styles.primaryBtnWrapper, pressed && !primaryDisabled && styles.pressed]}
-                      >
-                        <LinearGradient
-                          colors={
-                            primaryDisabled
-                              ? ["rgba(255,255,255,0.18)", "rgba(255,255,255,0.12)"]
-                              : [NeoTheme.colors.limeSoft, NeoTheme.colors.lime]
-                          }
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={styles.primaryBtn}
-                        >
-                          <Text style={[styles.primaryBtnText, !primaryDisabled && styles.primaryBtnTextActive]}>{primaryLabel}</Text>
-                        </LinearGradient>
-                      </Pressable>
+                        notch={16}
+                        cutoutColor={NeoTheme.colors.surfaceSolid}
+                        onPress={() => void onPrimary()}
+                        style={styles.primaryBtnWrapper}
+                      />
 
                       {(step !== 0 || category) && (
-                        <Pressable
+                        <CutButton
+                          label={editingId ? "Odustani" : "Ponisti"}
+                          variant="ghost"
+                          notch={16}
+                          cutoutColor={NeoTheme.colors.surfaceSolid}
                           onPress={resetForm}
-                          style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}
-                        >
-                          <Text style={styles.ghostBtnText}>
-                            {editingId ? "Odustani" : "Ponisti"}
-                          </Text>
-                        </Pressable>
+                          style={styles.ghostBtn}
+                        />
                       )}
                     </View>
                   </View>
@@ -1266,8 +1220,12 @@ export default function AlertsScreen() {
                 </View>
 
                 <View style={styles.alertMainRow}>
-                  <View style={styles.alertAvatar}>
-                    <Ionicons name={getCategoryIcon(item.category)} size={20} color="rgba(215, 242, 13, 1)" />
+                  <View style={[styles.alertAvatar, !item.isActive && styles.alertAvatarMuted]}>
+                    <Ionicons
+                      name={getCategoryIcon(item.category)}
+                      size={20}
+                      color={item.isActive ? "rgba(215, 242, 13, 1)" : NeoTheme.colors.textMuted}
+                    />
                   </View>
 
                   <View style={styles.alertCopy}>
@@ -1348,52 +1306,32 @@ export default function AlertsScreen() {
                 </View>
 
                 <View style={styles.alertActions}>
-                  <Pressable
-                    onPress={() => {
-                      if (!item.isPreview) {
-                        void toggleItem(item.id);
-                      }
-                    }}
-                    style={({ pressed }) => [
-                      item.isActive ? styles.pauseBtn : styles.enableBtn,
-                      item.isPreview && styles.disabledPreviewAction,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={item.isActive ? styles.pauseBtnText : styles.enableBtnText}>
-                      {item.isPreview ? "Demo" : item.isActive ? "Pauziraj" : "Ukljuci"}
-                    </Text>
-                  </Pressable>
+                  <CutButton
+                    label={item.isPreview ? "Demo" : item.isActive ? "Pauziraj" : "Ukljuci"}
+                    variant={item.isActive ? "orange" : "lime"}
+                    disabled={item.isPreview}
+                    cutoutColor={NeoTheme.colors.surfaceSolid}
+                    onPress={() => void toggleItem(item.id)}
+                    style={styles.alertActionBtn}
+                  />
 
-                  <Pressable
-                    onPress={() => {
-                      if (!item.isPreview) {
-                        startEdit(item);
-                      }
-                    }}
-                    style={({ pressed }) => [
-                      styles.editBtn,
-                      item.isPreview && styles.disabledPreviewAction,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.editBtnText}>Izmeni</Text>
-                  </Pressable>
+                  <CutButton
+                    label="Izmeni"
+                    variant="ghost"
+                    disabled={item.isPreview}
+                    cutoutColor={NeoTheme.colors.surfaceSolid}
+                    onPress={() => startEdit(item)}
+                    style={styles.alertActionBtn}
+                  />
 
-                  <Pressable
-                    onPress={() => {
-                      if (!item.isPreview) {
-                        deleteItem(item.id);
-                      }
-                    }}
-                    style={({ pressed }) => [
-                      styles.deleteBtn,
-                      item.isPreview && styles.disabledPreviewAction,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.deleteBtnText}>{item.isPreview ? "Test" : "Obrisi"}</Text>
-                  </Pressable>
+                  <CutButton
+                    label={item.isPreview ? "Test" : "Obrisi"}
+                    variant="danger-muted"
+                    disabled={item.isPreview}
+                    cutoutColor={NeoTheme.colors.surfaceSolid}
+                    onPress={() => deleteItem(item.id)}
+                    style={styles.alertActionBtn}
+                  />
                 </View>
               </View>
             )}
@@ -1461,12 +1399,10 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: rs(20),
     padding: rs(18),
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: rs(14),
-    ...neoShadow,
   },
   heroCopy: {
     flex: 1,
@@ -1495,9 +1431,7 @@ const styles = StyleSheet.create({
     width: rs(72),
     height: rs(72),
     borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    backgroundColor: NeoTheme.colors.inputFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1552,13 +1486,10 @@ const styles = StyleSheet.create({
     fontFamily: NeoTheme.fonts.medium,
   },
   formCard: {
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
     borderRadius: rs(20),
     padding: rs(16),
     marginBottom: rs(16),
-    ...neoShadow,
   },
   formTopRow: {
     flexDirection: "row",
@@ -1592,18 +1523,9 @@ const styles = StyleSheet.create({
     gap: rs(10),
   },
   categoryPill: {
-    position: "relative",
     minWidth: "48%",
-    backgroundColor: NeoTheme.colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    borderRadius: rs(14),
     paddingHorizontal: rs(14),
     paddingVertical: rs(12),
-  },
-  categoryPillActive: {
-    backgroundColor: NeoTheme.colors.lime,
-    borderColor: NeoTheme.colors.lime,
   },
   categoryPillText: {
     color: NeoTheme.colors.text,
@@ -1669,16 +1591,8 @@ const styles = StyleSheet.create({
     gap: rs(8),
   },
   inlinePickerChip: {
-    backgroundColor: NeoTheme.colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: 999,
-    paddingHorizontal: rs(10),
-    paddingVertical: rs(6),
-  },
-  inlinePickerChipActive: {
-    backgroundColor: NeoTheme.colors.lime,
-    borderColor: NeoTheme.colors.lime,
+    paddingHorizontal: rs(12),
+    paddingVertical: rs(8),
   },
   inlinePickerChipText: {
     color: NeoTheme.colors.text,
@@ -1690,18 +1604,7 @@ const styles = StyleSheet.create({
   },
   advancedToggle: {
     minHeight: rs(42),
-    borderRadius: rs(12),
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    backgroundColor: NeoTheme.colors.surfaceStrong,
-    alignItems: "center",
-    justifyContent: "center",
     marginTop: rs(10),
-  },
-  advancedToggleText: {
-    color: NeoTheme.colors.text,
-    fontSize: rf(13),
-    fontFamily: NeoTheme.fonts.semiBold,
   },
   advancedWrap: {
     marginTop: rs(12),
@@ -1723,9 +1626,9 @@ const styles = StyleSheet.create({
   input: {
     minHeight: rs(52),
     borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
+    borderColor: NeoTheme.colors.inputBorder,
     borderRadius: rs(14),
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: NeoTheme.colors.inputFill,
     color: NeoTheme.colors.text,
     fontSize: rf(16),
     fontFamily: NeoTheme.fonts.medium,
@@ -1738,16 +1641,16 @@ const styles = StyleSheet.create({
     marginTop: rs(10),
   },
   suggestionItem: {
-    backgroundColor: "rgba(215,242,13,0.12)",
+    backgroundColor: NeoTheme.colors.inputFill,
     borderWidth: 1,
-    borderColor: "rgba(215,242,13,0.18)",
-    borderRadius: rs(12),
+    borderColor: NeoTheme.colors.lime,
+    borderRadius: rs(10),
     paddingHorizontal: rs(10),
     paddingVertical: rs(6),
   },
   suggestionText: {
-    color: NeoTheme.colors.limeSoft,
-    fontSize: rf(11),
+    color: NeoTheme.colors.lime,
+    fontSize: rf(11.5),
     fontFamily: NeoTheme.fonts.medium,
   },
   formError: {
@@ -1766,35 +1669,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 0,
     flexBasis: "60%",
-  },
-  primaryBtn: {
     height: rs(52),
-    borderRadius: rs(14),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryBtnText: {
-    color: NeoTheme.colors.text,
-    fontSize: rf(18),
-    fontFamily: NeoTheme.fonts.bold,
-  },
-  primaryBtnTextActive: {
-    color: NeoTheme.colors.black,
   },
   ghostBtn: {
     minHeight: rs(52),
     minWidth: rs(96),
-    backgroundColor: NeoTheme.colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    borderRadius: rs(14),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ghostBtnText: {
-    color: NeoTheme.colors.text,
-    fontSize: rf(14),
-    fontFamily: NeoTheme.fonts.semiBold,
   },
   list: {
     paddingBottom: rs(120),
@@ -1817,27 +1696,28 @@ const styles = StyleSheet.create({
     fontFamily: NeoTheme.fonts.semiBold,
   },
   alertCard: {
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
     borderRadius: rs(18),
-    padding: rs(14),
+    padding: rs(16),
     marginBottom: rs(12),
-    ...neoShadow,
   },
   alertMainRow: {
     flexDirection: "row",
     gap: rs(12),
   },
   alertAvatar: {
-    width: rs(42),
-    height: rs(42),
-    borderRadius: NeoTheme.radius.xs,
+    width: rs(52),
+    height: rs(52),
+    borderRadius: rs(10),
     backgroundColor: "rgba(215, 242, 13, 0.1)",
     borderWidth: 1,
     borderColor: "rgba(215, 242, 13, 0.78)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  alertAvatarMuted: {
+    backgroundColor: NeoTheme.colors.inputFill,
+    borderColor: "rgba(255,255,255,0.16)",
   },
   alertCopy: {
     flex: 1,
@@ -1883,15 +1763,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   statusBadgeActive: {
-    backgroundColor: "rgba(0,0,0,0.86)",
-    borderColor: "rgba(57, 255, 20, 1)",
+    backgroundColor: NeoTheme.colors.background,
+    borderColor: NeoTheme.colors.limeBorder,
   },
   statusBadgePaused: {
-    backgroundColor: "rgba(0,0,0,0.86)",
+    backgroundColor: NeoTheme.colors.background,
     borderColor: "#FFB400",
   },
   statusBadgeText: {
-    color: "rgba(57, 255, 20, 1)",
+    color: NeoTheme.colors.lime,
     fontSize: rf(10),
     fontFamily: NeoTheme.fonts.semiBold,
   },
@@ -1903,67 +1783,9 @@ const styles = StyleSheet.create({
     gap: rs(8),
     marginTop: rs(14),
   },
-  pauseBtn: {
+  alertActionBtn: {
     flex: 1,
-    minHeight: rs(38),
-    borderRadius: rs(12),
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 149, 0, 1)",
-    backgroundColor: "rgba(255, 149, 0, 0.2)",
-  },
-  pauseBtnText: {
-    color: "rgba(255, 149, 0, 1)",
-    fontSize: rf(13),
-    fontFamily: NeoTheme.fonts.semiBold,
-  },
-  enableBtn: {
-    flex: 1,
-    minHeight: rs(38),
-    borderRadius: rs(12),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: NeoTheme.colors.lime,
-    ...neoGlow,
-  },
-  enableBtnText: {
-    color: NeoTheme.colors.black,
-    fontSize: rf(13),
-    fontFamily: NeoTheme.fonts.bold,
-  },
-  editBtn: {
-    flex: 1,
-    minHeight: rs(38),
-    borderRadius: rs(12),
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  editBtnText: {
-    color: NeoTheme.colors.text,
-    fontSize: rf(13),
-    fontFamily: NeoTheme.fonts.semiBold,
-  },
-  deleteBtn: {
-    flex: 1,
-    minHeight: rs(38),
-    borderRadius: rs(12),
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(255, 49, 49, 1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteBtnText: {
-    color: "rgba(255, 49, 49, 1)",
-    fontSize: rf(13),
-    fontFamily: NeoTheme.fonts.semiBold,
-  },
-  disabledPreviewAction: {
-    opacity: 0.5,
+    height: rs(38),
   },
   emptyBox: {
     marginTop: rs(12),
@@ -1971,9 +1793,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: rs(18),
     paddingVertical: rs(22),
     borderRadius: rs(18),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
   },
   emptyTitle: {
     color: NeoTheme.colors.text,

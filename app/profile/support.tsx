@@ -1,10 +1,10 @@
 import { AppHeader } from "@/components/app-header";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { CutButton } from "@/components/cut-button";
+import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SUPPORT_EMAIL = "support@lovacnaoglase.rs";
@@ -24,13 +24,15 @@ export default function SupportScreen() {
               Imaš problem sa aplikacijom ili pretplatom? Pošalji nam email i javićemo se.
             </Text>
             <Text style={styles.email}>{SUPPORT_EMAIL}</Text>
-            <Pressable
+            <CutButton
+              label="Pošalji email"
+              variant="lime"
+              icon="mail-outline"
+              notch={16}
+              cutoutColor={NeoTheme.colors.surfaceSolid}
               onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
-              style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
-            >
-              <Ionicons name="mail-outline" size={16} color={NeoTheme.colors.black} />
-              <Text style={styles.saveBtnText}>Pošalji email</Text>
-            </Pressable>
+              style={styles.saveBtn}
+            />
           </View>
         </ScrollView>
       </View>
@@ -54,12 +56,9 @@ const styles = StyleSheet.create({
     gap: rs(12),
   },
   card: {
-    borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    padding: rs(14),
-    ...neoShadow,
+    borderRadius: rs(18),
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    padding: rs(16),
   },
   cardTitle: {
     color: NeoTheme.colors.text,
@@ -81,20 +80,6 @@ const styles = StyleSheet.create({
     marginBottom: rs(14),
   },
   saveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: rs(8),
-    minHeight: rs(40),
-    borderRadius: rs(10),
-    backgroundColor: NeoTheme.colors.lime,
-  },
-  saveBtnText: {
-    color: NeoTheme.colors.black,
-    fontFamily: NeoTheme.fonts.bold,
-    fontSize: rf(14),
-  },
-  pressed: {
-    opacity: 0.84,
+    height: rs(48),
   },
 });

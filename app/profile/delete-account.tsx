@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { CutButton } from "@/components/cut-button";
+import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
@@ -7,7 +8,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Linking,
@@ -104,13 +104,15 @@ export default function DeleteAccountScreen() {
                   Pretplatom upravlja Google Play, ne mi. Brisanje naloga je ne otkazuje — ako je
                   ne otkažeš, naplata se nastavlja iako više nemaš nalog.
                 </Text>
-                <Pressable
+                <CutButton
+                  label="Otvori pretplate na Google Play-u"
+                  variant="lime"
+                  icon="open-outline"
+                  notch={12}
+                  cutoutColor={NeoTheme.colors.surfaceSolid}
                   onPress={() => void Linking.openURL(PLAY_SUBSCRIPTIONS_URL)}
-                  style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}
-                >
-                  <Text style={styles.linkButtonText}>Otvori pretplate na Google Play-u</Text>
-                  <Ionicons name="open-outline" size={16} color={NeoTheme.colors.black} />
-                </Pressable>
+                  style={styles.linkButton}
+                />
               </View>
             ) : null}
 
@@ -137,21 +139,15 @@ export default function DeleteAccountScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Pressable
-              onPress={confirmDeletion}
+            <CutButton
+              label={deleting ? "Brišem..." : "Trajno obriši nalog"}
+              variant="danger"
+              notch={12}
+              cutoutColor={NeoTheme.colors.background}
               disabled={!emailMatches || deleting}
-              style={({ pressed }) => [
-                styles.deleteButton,
-                (!emailMatches || deleting) && styles.deleteButtonDisabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              {deleting ? (
-                <ActivityIndicator color={NeoTheme.colors.text} />
-              ) : (
-                <Text style={styles.deleteButtonText}>Trajno obriši nalog</Text>
-              )}
-            </Pressable>
+              onPress={confirmDeletion}
+              style={styles.deleteButton}
+            />
 
             <Pressable onPress={() => void Linking.openURL(DELETION_INFO_URL)}>
               <Text style={styles.infoLink}>Šta se tačno briše, a šta zadržavamo</Text>
@@ -183,25 +179,22 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
     padding: rs(16),
     gap: rs(8),
-    ...neoShadow,
   },
   warningCard: {
     borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.dangerSoft,
-    borderWidth: 1,
+    backgroundColor: "#2C1614",
+    borderWidth: 1.5,
     borderColor: NeoTheme.colors.danger,
     padding: rs(16),
     gap: rs(10),
   },
   billingCard: {
     borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    borderWidth: 1.5,
     borderColor: NeoTheme.colors.limeBorder,
     padding: rs(16),
     gap: rs(10),
@@ -241,10 +234,10 @@ const styles = StyleSheet.create({
   },
   input: {
     marginTop: rs(4),
-    borderRadius: rs(12),
-    backgroundColor: NeoTheme.colors.surfaceStrong,
+    borderRadius: rs(14),
+    backgroundColor: NeoTheme.colors.inputFill,
     borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
+    borderColor: NeoTheme.colors.inputBorder,
     paddingHorizontal: rs(14),
     paddingVertical: rs(12),
     color: NeoTheme.colors.text,
@@ -252,35 +245,11 @@ const styles = StyleSheet.create({
     fontFamily: NeoTheme.fonts.regular,
   },
   linkButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: rs(8),
-    borderRadius: rs(12),
-    backgroundColor: NeoTheme.colors.lime,
-    paddingVertical: rs(12),
-  },
-  linkButtonText: {
-    color: NeoTheme.colors.black,
-    fontSize: rf(14),
-    fontFamily: NeoTheme.fonts.bold,
+    marginTop: rs(4),
+    height: rs(44),
   },
   deleteButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: rs(14),
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.danger,
-    backgroundColor: NeoTheme.colors.dangerSoft,
-    paddingVertical: rs(15),
-  },
-  deleteButtonDisabled: {
-    opacity: 0.45,
-  },
-  deleteButtonText: {
-    color: NeoTheme.colors.danger,
-    fontSize: rf(15),
-    fontFamily: NeoTheme.fonts.bold,
+    height: rs(50),
   },
   error: {
     color: NeoTheme.colors.danger,
@@ -294,8 +263,5 @@ const styles = StyleSheet.create({
     fontSize: rf(13),
     fontFamily: NeoTheme.fonts.regular,
     textDecorationLine: "underline",
-  },
-  pressed: {
-    opacity: 0.84,
   },
 });

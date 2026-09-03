@@ -1,5 +1,5 @@
 import { AppHeader } from "@/components/app-header";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import { useRouter } from "expo-router";
@@ -64,12 +64,9 @@ const styles = StyleSheet.create({
     gap: rs(12),
   },
   card: {
-    borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    padding: rs(14),
-    ...neoShadow,
+    borderRadius: rs(18),
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    padding: rs(16),
   },
   cardTitle: {
     color: NeoTheme.colors.text,

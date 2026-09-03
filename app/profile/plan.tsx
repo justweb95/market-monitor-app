@@ -1,6 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { NeoTheme } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
 import {
   entitlementSignature,
@@ -423,18 +423,18 @@ export default function PlanScreen() {
                     {!isDrugarskiActive &&
                     profile?.planTier === activePlan.id &&
                     canManageSubscription ? (
-                      <Pressable
-                        style={({ pressed }) => [styles.buyBtn, pressed && styles.pressed]}
-                        onPress={() => Linking.openURL(managementUrl ?? PLAY_STORE_SUBSCRIPTIONS_URL)}
-                      >
-                        <Text style={styles.buyBtnText}>
-                          {profile?.subscription?.status === "PAUSED"
+                      // Namerno bez dugmeta ovde - isto "otkazi/pauziraj" dugme vec
+                      // stoji gore, odmah pored "Promeni plan". Dva dugmeta koja
+                      // otvaraju isti Play Store ekran su zbunjujuca duplikacija.
+                      <Text style={styles.planActiveNote}>
+                        {`Ovaj plan je trenutno aktivan. Pretplatu upravljas dugmetom "${
+                          profile?.subscription?.status === "PAUSED"
                             ? "Nastavi placanje"
                             : profile?.subscription?.status === "CANCELLED"
                               ? "Pretplata aktivna do isteka"
-                            : "Zaustavi placanje"}
-                        </Text>
-                      </Pressable>
+                              : "Otkaži pretplatu"
+                        }" iznad.`}
+                      </Text>
                     ) : (
                       <Pressable
                         style={({ pressed }) => [styles.buyBtn, pressed && styles.pressed, (purchasing || syncing) && styles.disabled]}
@@ -570,29 +570,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     minWidth: rs(74),
   },
+  // Puni (ne providni) chip - iz redizajna (Claude Design v5): tamniji tekst na
+  // punoj boji, umesto ranijeg providnog chip-a sa obojenim tekstom/ivicom.
   periodTrial: {
-    color: "#F6A623",
-    backgroundColor: "rgba(246, 166, 35, 0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(246, 166, 35, 0.45)",
+    color: "#1A1200",
+    backgroundColor: "#F6A623",
   },
   periodFriend: {
-    color: "#3DDC97",
-    backgroundColor: "rgba(61, 220, 151, 0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(61, 220, 151, 0.45)",
+    color: "#03261A",
+    backgroundColor: "#3DDC97",
   },
   periodPaid: {
-    color: "#4DA3FF",
-    backgroundColor: "rgba(77, 163, 255, 0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(77, 163, 255, 0.45)",
+    color: "#04162E",
+    backgroundColor: "#4DA3FF",
   },
   periodPaused: {
-    color: "#FF7A59",
-    backgroundColor: "rgba(255, 122, 89, 0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 122, 89, 0.45)",
+    color: "#2E0D00",
+    backgroundColor: "#FF7A59",
   },
   subscriptionInfo: {
     flexDirection: "row",
@@ -610,12 +604,9 @@ const styles = StyleSheet.create({
     fontFamily: NeoTheme.fonts.medium,
   },
   card: {
-    borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    padding: rs(14),
-    ...neoShadow,
+    borderRadius: rs(20),
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    padding: rs(16),
   },
   cardTitle: {
     color: NeoTheme.colors.text,
@@ -654,14 +645,14 @@ const styles = StyleSheet.create({
     gap: rs(8),
   },
   planRow: {
-    borderRadius: rs(12),
-    borderWidth: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    paddingHorizontal: rs(10),
-    paddingVertical: rs(10),
+    borderRadius: rs(14),
+    borderWidth: 1.5,
+    backgroundColor: NeoTheme.colors.inputFill,
+    paddingHorizontal: rs(14),
+    paddingVertical: rs(15),
     flexDirection: "row",
     alignItems: "center",
-    gap: rs(10),
+    gap: rs(12),
   },
   planCopy: {
     flex: 1,
@@ -687,11 +678,11 @@ const styles = StyleSheet.create({
     fontSize: rf(11),
   },
   planDetailCard: {
-    marginTop: rs(12),
-    borderRadius: rs(14),
-    borderWidth: 1,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    padding: rs(12),
+    marginTop: rs(14),
+    borderRadius: rs(16),
+    borderWidth: 1.5,
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    padding: rs(16),
   },
   planDetailHeader: {
     flexDirection: "row",
@@ -710,14 +701,20 @@ const styles = StyleSheet.create({
     lineHeight: rf(18),
     marginBottom: rs(10),
   },
+  planActiveNote: {
+    color: NeoTheme.colors.textDim,
+    fontFamily: NeoTheme.fonts.medium,
+    fontSize: rf(12),
+    lineHeight: rf(17),
+  },
   input: {
-    minHeight: rs(44),
-    borderRadius: rs(10),
+    minHeight: rs(46),
+    borderRadius: rs(14),
     borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: NeoTheme.colors.inputBorder,
+    backgroundColor: NeoTheme.colors.inputFill,
     color: NeoTheme.colors.text,
-    paddingHorizontal: rs(12),
+    paddingHorizontal: rs(14),
     fontFamily: NeoTheme.fonts.medium,
     marginBottom: rs(8),
   },

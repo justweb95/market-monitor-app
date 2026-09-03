@@ -2,7 +2,11 @@ import { NeoTheme, neoGlow } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+
+// Ispod ove sirine hex logo se malo smanjuje da ostavi vise mesta nazivu
+// aplikacije - naziv je logo, ne sme da ide na "..." kao obican tekst.
+const NARROW_HEADER_WIDTH = 340;
 
 type AppHeaderProps = {
   rightLabel: string;
@@ -27,6 +31,9 @@ export function AppHeader({
   leftIcon,
   onLeftPress,
 }: AppHeaderProps) {
+  const { width } = useWindowDimensions();
+  const isNarrow = width < NARROW_HEADER_WIDTH;
+
   const isCountAtLimit = (() => {
     if (!rightCount || !rightCount.includes("/")) return false;
     const [currentRaw, maxRaw] = rightCount.split("/");
@@ -39,7 +46,9 @@ export function AppHeader({
   const rightContent = (
     <>
       {rightIcon ? <Ionicons name={rightIcon} size={16} color={rightIconColor} /> : null}
-      <Text style={styles.rightLabel}>{rightLabel}</Text>
+      <Text style={styles.rightLabel} numberOfLines={1} ellipsizeMode="tail">
+        {rightLabel}
+      </Text>
       {rightCount ? (
         <View
           style={[
@@ -56,11 +65,22 @@ export function AppHeader({
   return (
     <View style={styles.headerRow}>
       <View style={styles.headerLeftCluster}>
-        <View style={styles.brandRow}>
-          <View style={styles.logoHex} />
+        <View style={[styles.brandRow, isNarrow && styles.brandRowNarrow]}>
+          <View style={[styles.logoHex, isNarrow && styles.logoHexNarrow]} />
           <View style={styles.brandCopy}>
-            <Text style={styles.brandText}>Lovac na Oglase</Text>
-            <Text style={styles.brandDescription}>{description}</Text>
+            {/* Naziv je logo - ne sme da se secka na "...", sme da se smanji. */}
+            <Text
+              style={styles.brandText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              ellipsizeMode="clip"
+            >
+              Lovac na Oglase
+            </Text>
+            <Text style={styles.brandDescription} numberOfLines={1} ellipsizeMode="tail">
+              {description}
+            </Text>
           </View>
         </View>
       </View>
@@ -129,6 +149,9 @@ const styles = StyleSheet.create({
     gap: rs(12),
     flexShrink: 1,
   },
+  brandRowNarrow: {
+    gap: rs(8),
+  },
   brandCopy: {
     flexShrink: 1,
   },
@@ -140,6 +163,12 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "45deg" }],
     marginTop: rs(9),
     ...neoGlow,
+  },
+  logoHexNarrow: {
+    width: rs(18),
+    height: rs(18),
+    borderRadius: rs(5),
+    marginTop: rs(10),
   },
   brandText: {
     color: NeoTheme.colors.text,

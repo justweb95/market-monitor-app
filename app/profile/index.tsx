@@ -1,11 +1,12 @@
 import { AppHeader } from "@/components/app-header";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { CutCard } from "@/components/cut-card";
+import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type MenuItem = {
@@ -53,39 +54,30 @@ export default function ProfileMenuScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           {MENU_ITEMS.map((item) => (
-            <Pressable
-              key={item.route}
-              onPress={() => router.push(item.route)}
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            >
+            <CutCard key={item.route} onPress={() => router.push(item.route)} style={styles.card}>
               <View style={styles.row}>
                 <Ionicons name={item.icon} size={20} color={NeoTheme.colors.lime} />
                 <Text style={styles.title}>{item.title}</Text>
                 <Ionicons name="chevron-forward" size={18} color={NeoTheme.colors.textMuted} />
               </View>
-            </Pressable>
+            </CutCard>
           ))}
 
-          <Pressable
-            onPress={() => router.push("/profile/delete-account")}
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-          >
+          <CutCard onPress={() => router.push("/profile/delete-account")} style={styles.card}>
             <View style={styles.row}>
               <Ionicons name="trash-outline" size={20} color={NeoTheme.colors.danger} />
               <Text style={[styles.title, styles.dangerTitle]}>Obriši nalog</Text>
+              <Ionicons name="chevron-forward" size={18} color={NeoTheme.colors.danger} />
+            </View>
+          </CutCard>
+
+          <CutCard onPress={confirmLogout} style={styles.card}>
+            <View style={styles.row}>
+              <Ionicons name="log-out-outline" size={20} color={NeoTheme.colors.lime} />
+              <Text style={styles.title}>Odjavi se</Text>
               <Ionicons name="chevron-forward" size={18} color={NeoTheme.colors.textMuted} />
             </View>
-          </Pressable>
-
-          <Pressable
-            onPress={confirmLogout}
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-          >
-            <View style={styles.row}>
-              <Ionicons name="log-out-outline" size={20} color={NeoTheme.colors.textMuted} />
-              <Text style={styles.title}>Odjavi se</Text>
-            </View>
-          </Pressable>
+          </CutCard>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -108,28 +100,21 @@ const styles = StyleSheet.create({
     gap: rs(12),
   },
   card: {
-    borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    padding: rs(14),
-    ...neoShadow,
+    paddingVertical: rs(17),
+    paddingHorizontal: rs(16),
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: rs(12),
+    gap: rs(14),
   },
   title: {
     flex: 1,
     color: NeoTheme.colors.text,
-    fontSize: rf(16),
+    fontSize: rf(15),
     fontFamily: NeoTheme.fonts.semiBold,
   },
   dangerTitle: {
     color: NeoTheme.colors.danger,
-  },
-  pressed: {
-    opacity: 0.84,
   },
 });

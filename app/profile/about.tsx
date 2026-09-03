@@ -1,5 +1,5 @@
 import { AppHeader } from "@/components/app-header";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import Constants from "expo-constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -20,15 +20,15 @@ export default function AboutScreen() {
           <View style={styles.card}>
             <Pressable onPress={() => Linking.openURL("https://lovacnaoglase.rs")} style={styles.legalRow}>
               <Text style={styles.legalLink}>Landing stranica</Text>
-              <Ionicons name="open-outline" size={14} color={NeoTheme.colors.textMuted} />
+              <Ionicons name="open-outline" size={18} color={NeoTheme.colors.textMuted} />
             </Pressable>
             <Pressable onPress={() => Linking.openURL("https://lovacnaoglase.rs/privacy")} style={styles.legalRow}>
               <Text style={styles.legalLink}>Politika privatnosti</Text>
-              <Ionicons name="open-outline" size={14} color={NeoTheme.colors.textMuted} />
+              <Ionicons name="open-outline" size={18} color={NeoTheme.colors.textMuted} />
             </Pressable>
             <Pressable onPress={() => Linking.openURL("https://lovacnaoglase.rs/terms")} style={styles.legalRow}>
               <Text style={styles.legalLink}>Uslovi korišćenja</Text>
-              <Ionicons name="open-outline" size={14} color={NeoTheme.colors.textMuted} />
+              <Ionicons name="open-outline" size={18} color={NeoTheme.colors.textMuted} />
             </Pressable>
             <Text style={styles.versionText}>Verzija {Constants.expoConfig?.version ?? "1.0.0"}</Text>
           </View>
@@ -54,31 +54,28 @@ const styles = StyleSheet.create({
     gap: rs(12),
   },
   card: {
-    borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    padding: rs(14),
-    ...neoShadow,
+    borderRadius: rs(18),
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    paddingHorizontal: rs(16),
   },
   legalRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: rs(10),
+    paddingVertical: rs(15),
     borderBottomWidth: 1,
-    borderBottomColor: NeoTheme.colors.border,
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
   legalLink: {
     color: NeoTheme.colors.text,
     fontSize: rf(14),
-    fontFamily: NeoTheme.fonts.medium,
+    fontFamily: NeoTheme.fonts.semiBold,
   },
   versionText: {
     color: NeoTheme.colors.textMuted,
     fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
-    marginTop: rs(10),
+    paddingVertical: rs(14),
     textAlign: "center",
   },
 });

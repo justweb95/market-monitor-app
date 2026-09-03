@@ -50,6 +50,15 @@ export default function FavoritesScreen() {
           contentContainerStyle={styles.list}
           columnWrapperStyle={columnCount === 2 ? styles.columnWrap : undefined}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.introBox}>
+              <Text style={styles.introKicker}>Favoriti</Text>
+              <Text style={styles.introTitle}>Oglasi koje si sacuvao.</Text>
+              <Text style={styles.introBody}>
+                Vrati se ovde kad zelis da uporedis cene ili ponovo pogledas oglas.
+              </Text>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Nema sacuvanih oglasa</Text>
@@ -142,6 +151,31 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: rs(120),
     gap: rs(12),
+  },
+  introBox: {
+    borderRadius: rs(18),
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    padding: rs(16),
+    marginBottom: rs(16),
+  },
+  introKicker: {
+    color: NeoTheme.colors.lime,
+    fontSize: rf(11.5),
+    fontFamily: NeoTheme.fonts.semiBold,
+  },
+  introTitle: {
+    color: NeoTheme.colors.text,
+    fontSize: rf(21),
+    lineHeight: rf(25),
+    fontFamily: NeoTheme.fonts.bold,
+    marginTop: rs(6),
+  },
+  introBody: {
+    color: NeoTheme.colors.textMuted,
+    fontSize: rf(12),
+    lineHeight: rf(18),
+    fontFamily: NeoTheme.fonts.medium,
+    marginTop: rs(8),
   },
   columnWrap: {
     gap: rs(12),
@@ -236,10 +270,10 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   cutButtonDanger: {
-    backgroundColor: "rgba(255, 49, 49, 1)",
+    backgroundColor: "#2C1614",
   },
   deleteBtnText: {
-    color: NeoTheme.colors.text,
+    color: NeoTheme.colors.danger,
     fontSize: rf(11),
     fontFamily: NeoTheme.fonts.bold,
   },

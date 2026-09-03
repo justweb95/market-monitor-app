@@ -1,3 +1,4 @@
+import { CutCard } from "@/components/cut-card";
 import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import {
@@ -201,21 +202,29 @@ export function LocationPicker({ cities, radiusKm, onChangeCities, onChangeRadiu
       {selected.length > 0 && (
         <View style={styles.chipsWrap}>
           {selected.map((city) => (
-            <Pressable
+            <CutCard
               key={city.code}
               onPress={() => toggleCity(city.code)}
-              style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+              notch={rs(6)}
+              fillColor={NeoTheme.colors.lime}
+              cutoutColor={NeoTheme.colors.surfaceSolid}
+              style={styles.chip}
             >
-              <Text style={styles.chipText}>{city.label}</Text>
-              <Ionicons name="close" size={rs(13)} color={NeoTheme.colors.black} />
-            </Pressable>
+              <View style={styles.chipRow}>
+                <Text style={styles.chipText}>{city.label}</Text>
+                <Ionicons name="close" size={rs(13)} color={NeoTheme.colors.black} />
+              </View>
+            </CutCard>
           ))}
-          <Pressable
+          <CutCard
             onPress={() => onChangeCities([])}
-            style={({ pressed }) => [styles.clearChip, pressed && styles.pressed]}
+            notch={rs(6)}
+            fillColor={NeoTheme.colors.inputFill}
+            cutoutColor={NeoTheme.colors.surfaceSolid}
+            style={styles.clearChip}
           >
             <Text style={styles.clearChipText}>Ocisti sve</Text>
-          </Pressable>
+          </CutCard>
         </View>
       )}
 
@@ -361,10 +370,10 @@ const styles = StyleSheet.create({
     gap: rs(8),
     minHeight: rs(52),
     paddingHorizontal: rs(12),
-    borderRadius: NeoTheme.radius.sm,
+    borderRadius: rs(12),
     borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: NeoTheme.colors.inputBorder,
+    backgroundColor: NeoTheme.colors.inputFill,
   },
   dropdownNarrow: {
     flex: 0,
@@ -394,13 +403,13 @@ const styles = StyleSheet.create({
     gap: rs(8),
   },
   chip: {
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(7),
+  },
+  chipRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: rs(6),
-    paddingHorizontal: rs(10),
-    paddingVertical: rs(7),
-    borderRadius: rs(12),
-    backgroundColor: NeoTheme.colors.lime,
   },
   chipText: {
     color: NeoTheme.colors.black,
@@ -410,12 +419,9 @@ const styles = StyleSheet.create({
   clearChip: {
     paddingHorizontal: rs(10),
     paddingVertical: rs(7),
-    borderRadius: rs(12),
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
   },
   clearChipText: {
-    color: NeoTheme.colors.textMuted,
+    color: "#E0E0E0",
     fontSize: rf(12),
     fontFamily: NeoTheme.fonts.medium,
   },

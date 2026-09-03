@@ -6,6 +6,13 @@ export const NeoTheme = {
     backgroundAlt: "#1D1D1D",
     surface: "rgba(255,255,255,0.08)",
     surfaceStrong: "rgba(255,255,255,0.14)",
+    // Puna (ne providna) tamna povrsina iz redizajna (Claude Design v5) - koristi se
+    // uz CutCard za kartice/redove sa "isecenim" (chamfered) uglovima.
+    surfaceSolid: "#1A1A1A",
+    // Popunjena polja za unos (TextInput) iz istog redizajna - malo svetlije od
+    // surfaceSolid da se vidi razlika izmedju kartice i polja unutar nje.
+    inputFill: "#262626",
+    inputBorder: "rgba(255,255,255,0.14)",
     border: "rgba(255,255,255,0.12)",
     borderStrong: "rgba(255,255,255,0.24)",
     text: "#FFFFFF",

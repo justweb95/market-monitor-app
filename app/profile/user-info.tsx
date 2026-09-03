@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
-import { NeoTheme, neoShadow } from "@/constants/neo-theme";
+import { CutButton } from "@/components/cut-button";
+import { NeoTheme } from "@/constants/neo-theme";
 import { rf, rs } from "@/constants/responsive";
 import { useDevice } from "@/contexts/DeviceContext";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
@@ -7,7 +8,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -114,9 +114,15 @@ export default function UserInfoScreen() {
             <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input} placeholder="Email" placeholderTextColor={NeoTheme.colors.textDim} />
             <Text style={styles.label}>Password</Text>
             <TextInput value={password} onChangeText={setPassword} secureTextEntry style={styles.input} placeholder="Password" placeholderTextColor={NeoTheme.colors.textDim} />
-            <Pressable onPress={onSave} disabled={saving} style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed, saving && styles.disabled]}>
-              <Text style={styles.saveBtnText}>{saving ? "Cuvam..." : "Sacuvaj profil"}</Text>
-            </Pressable>
+            <CutButton
+              label={saving ? "Cuvam..." : "Sacuvaj profil"}
+              variant="lime"
+              disabled={saving}
+              notch={16}
+              cutoutColor={NeoTheme.colors.surfaceSolid}
+              onPress={onSave}
+              style={styles.saveBtn}
+            />
             {saveError ? <Text style={styles.inlineError}>{saveError}</Text> : null}
             {saveSuccess ? <Text style={styles.inlineSuccess}>{saveSuccess}</Text> : null}
           </View>
@@ -152,12 +158,9 @@ const styles = StyleSheet.create({
     gap: rs(12),
   },
   card: {
-    borderRadius: rs(16),
-    backgroundColor: NeoTheme.colors.surface,
-    borderWidth: 1,
-    borderColor: NeoTheme.colors.border,
-    padding: rs(14),
-    ...neoShadow,
+    borderRadius: rs(20),
+    backgroundColor: NeoTheme.colors.surfaceSolid,
+    padding: rs(16),
   },
   label: {
     color: NeoTheme.colors.textMuted,
@@ -167,34 +170,19 @@ const styles = StyleSheet.create({
     marginTop: rs(8),
   },
   input: {
-    minHeight: rs(44),
-    borderRadius: rs(10),
+    minHeight: rs(46),
+    borderRadius: rs(14),
     borderWidth: 1,
-    borderColor: NeoTheme.colors.borderStrong,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: NeoTheme.colors.inputBorder,
+    backgroundColor: NeoTheme.colors.inputFill,
     color: NeoTheme.colors.text,
-    paddingHorizontal: rs(12),
+    paddingHorizontal: rs(14),
     fontFamily: NeoTheme.fonts.medium,
     marginBottom: rs(8),
   },
   saveBtn: {
     marginTop: rs(6),
-    minHeight: rs(40),
-    borderRadius: rs(10),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: NeoTheme.colors.lime,
-  },
-  saveBtnText: {
-    color: NeoTheme.colors.black,
-    fontFamily: NeoTheme.fonts.bold,
-    fontSize: rf(14),
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.84,
+    height: rs(48),
   },
   inlineError: {
     color: NeoTheme.colors.danger,

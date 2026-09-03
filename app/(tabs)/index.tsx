@@ -52,7 +52,7 @@ const WEB_PREVIEW_CARD: NotifItem = {
   body: "11.900 EUR | Beograd",
   url: "https://www.kupujemprodajem.com/",
   receivedAt: new Date(),
-  sourceLabel: "KupujemProdajem",
+  sourceLabel: "Spoljni oglas",
   bucket: "today",
   isPreview: true,
   priceText: "11.900 EUR",
@@ -75,10 +75,11 @@ function getBucket(date: Date): FilterKey {
   return "older";
 }
 
+// Imena izvora (KupujemProdajem, Polovni Automobili) se ne prikazuju direktno
+// korisniku - drzimo ih neutralnim da ne "bodu oci" i ne pravimo neposrednu
+// vizuelnu vezu sa konkretnim sajtom.
 function getSourceLabel(url?: string): string {
   if (!url) return "Bez izvora";
-  if (url.includes("kupujemprodajem")) return "KupujemProdajem";
-  if (url.includes("polovniautomobili")) return "Polovni Automobili";
   if (url.includes("facebook")) return "Facebook";
   return "Spoljni oglas";
 }
@@ -151,6 +152,31 @@ export default function HomeScreen() {
       : profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE
         ? 5
         : 0;
+
+  // Hero naslov/tekst/dugme se menja u zavisnosti da li korisnik vec ima
+  // aktivnih signala, da ne bi i posle prvog signala stalno pisalo "kreiraj
+  // prvi signal".
+  const heroCopy = useMemo(() => {
+    if (displaySignalCount <= 0) {
+      return {
+        title: "Kreiraj prvi signal.",
+        body: "Podesi kategoriju, naziv i cenu, a aplikacija prati oglase koje trazis i javlja cim se pojavi dobar rezultat.",
+        button: "Kreiraj signal",
+      };
+    }
+    if (displaySignalLimit > 0 && displaySignalCount >= displaySignalLimit) {
+      return {
+        title: "Svi slotovi su u pogonu.",
+        body: "Iskoristio si sve aktivne signale. Upravljaj postojecim ili promeni plan za jos slotova.",
+        button: "Vidi signale",
+      };
+    }
+    return {
+      title: "Signali su aktivni.",
+      body: "Dodaj jos jedan signal i pratimo vise kategorija odjednom.",
+      button: "Dodaj signal",
+    };
+  }, [displaySignalCount, displaySignalLimit]);
 
   const columnCount = width > 380 ? 2 : 1;
 
@@ -321,15 +347,13 @@ export default function HomeScreen() {
               >
                 <View style={styles.heroContent}>
                   <View style={styles.heroCopy}>
-                    <Text style={styles.heroTitle}>Kreiraj prvi signal.</Text>
-                    <Text style={styles.heroBody}>
-                      Podesi kategoriju, naziv i cenu, a aplikacija prati oglase koje trazis i javlja cim se pojavi dobar rezultat.
-                    </Text>
+                    <Text style={styles.heroTitle}>{heroCopy.title}</Text>
+                    <Text style={styles.heroBody}>{heroCopy.body}</Text>
                     <Pressable
                       onPress={() => router.push("/alerts")}
                       style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}
                     >
-                      <Text style={styles.heroButtonText}>Idi na signal</Text>
+                      <Text style={styles.heroButtonText}>{heroCopy.button}</Text>
                       <Ionicons name="arrow-forward" size={16} color={NeoTheme.colors.black} />
                     </Pressable>
                   </View>
@@ -620,7 +644,7 @@ const styles = StyleSheet.create({
   },
   cutButtonDanger: {
     flex: 1,
-    backgroundColor: "rgba(255, 49, 49, 1)",
+    backgroundColor: "#2C1614",
   },
   cutout: {
     position: "absolute",
@@ -653,7 +677,7 @@ const styles = StyleSheet.create({
     fontFamily: NeoTheme.fonts.bold,
   },
   cutButtonTextDanger: {
-    color: NeoTheme.colors.text,
+    color: NeoTheme.colors.danger,
     fontSize: rf(11),
     fontFamily: NeoTheme.fonts.bold,
   },
