@@ -63,6 +63,12 @@ export function CutButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      // Bez ovoga, Android ne renderuje disabled/pressed opacity kao jedan
+      // sloj vec blenduje svako dete (isecene "cutout" ivice) posebno sa onim
+      // sto je vec iscrtano ispod - to pusta pozadinu dugmeta (npr. lime) da
+      // se probije preko izsecenih uglova. Sa ovim se ceo sadrzaj prvo
+      // renderuje offscreen pa se opacity primenjuje na gotovu sliku.
+      needsOffscreenAlphaCompositing
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: background },

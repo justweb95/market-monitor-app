@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/app-header";
+import { CutButton } from "@/components/cut-button";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
 import { NeoTheme } from "@/constants/neo-theme";
 import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
@@ -436,8 +437,13 @@ export default function PlanScreen() {
                         }" iznad.`}
                       </Text>
                     ) : (
-                      <Pressable
-                        style={({ pressed }) => [styles.buyBtn, pressed && styles.pressed, (purchasing || syncing) && styles.disabled]}
+                      <CutButton
+                        label={purchasing || syncing ? "Obrada..." : `Kupi ${planPriceLabel(activePlan)} / mesečno`}
+                        variant="lime"
+                        notch={12}
+                        cutoutColor={NeoTheme.colors.surfaceSolid}
+                        disabled={purchasing || syncing || !activePkg}
+                        style={styles.buyBtn}
                         onPress={async () => {
                           if (!activePkg) return;
 
@@ -492,16 +498,7 @@ export default function PlanScreen() {
                             Alert.alert("Kupovina nije uspela", purchaseError);
                           }
                         }}
-                        disabled={purchasing || syncing || !activePkg}
-                      >
-                        {purchasing || syncing ? (
-                          <ActivityIndicator color={NeoTheme.colors.black} />
-                        ) : (
-                          <Text style={styles.buyBtnText}>
-                            Kupi {planPriceLabel(activePlan)} / mesečno
-                          </Text>
-                        )}
-                      </Pressable>
+                      />
                     )}
                     {purchaseMsg ? (
                       <Text
@@ -736,17 +733,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 49, 49, 0.12)",
     borderColor: NeoTheme.colors.danger,
   },
+  // Samo layout - boju/oblik (isečeni uglovi) nosi CutButton, ne prepisivati
+  // ih ovde (npr. borderRadius bi ponistio dizajn isečenih ivica).
   buyBtn: {
-    minHeight: rs(40),
-    borderRadius: rs(10),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: NeoTheme.colors.lime,
-  },
-  buyBtnText: {
-    color: NeoTheme.colors.black,
-    fontFamily: NeoTheme.fonts.semiBold,
-    fontSize: rf(13),
+    height: rs(44),
   },
   disabled: {
     opacity: 0.5,
