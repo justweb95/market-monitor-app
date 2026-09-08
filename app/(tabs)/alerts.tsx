@@ -8,7 +8,7 @@ import { API_URL } from "@/constants/api";
 import { parseApiErrorMessage } from "@/constants/apiError";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { NeoTheme, neoGlow } from "@/constants/neo-theme";
-import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { hasDrugarskiPlan } from "@/constants/promo";
 import { rf, rs } from "@/constants/responsive";
 import { normalizeSearchText } from "@/constants/text";
 import { useDevice } from "@/contexts/DeviceContext";
@@ -441,7 +441,7 @@ export default function AlertsScreen() {
 
   const isWebPreview = Platform.OS === "web" && items.length === 0;
   const displayItems = isWebPreview ? [WEB_PREVIEW_ALERT] : items;
-  const isDrugarskiActive = profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE;
+  const isDrugarskiActive = hasDrugarskiPlan(profile?.user?.promoCodeUsed);
   const alertLimit =
     profile?.alertLimit && profile.alertLimit > 0
       ? profile.alertLimit

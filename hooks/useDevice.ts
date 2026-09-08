@@ -68,6 +68,13 @@ export function useDeviceState() {
   } = usePushToken(notificationsEnabled);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Prvi prolaz automatske registracije je zavrsen (uspesno ili ne). Odvojeno od
+  // `loading` NAMERNO: `loading` je true i tokom SVAKE kasnije rucne registracije
+  // (prijava/registracija sa AuthGate-a), pa ako bi ekran za ucitavanje visio o
+  // `loading`, AuthGate bi se odmontirao na svaki pokusaj prijave i poneo sa sobom
+  // poruku o gresci (npr. "Nalog sa ovim emailom vec postoji") - korisnik ne bi
+  // video nista. `bootstrapped` se postavlja jednom i vise se ne gasi.
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -287,6 +294,7 @@ export function useDeviceState() {
     const mode = getNotificationMode(pushSupported, pushReason, pushToken);
     if (notificationsEnabled && mode === "disabled") {
       setLoading(false);
+      setBootstrapped(true);
       if (pushTokenError) {
         setError(pushTokenError);
       }
@@ -316,12 +324,17 @@ export function useDeviceState() {
         setDeviceId(storedDeviceId);
         setNotificationMode(notificationsEnabled ? mode : "disabled");
         setLoading(false);
+        setBootstrapped(true);
         return;
       }
 
-      registerDevice().catch(() => {
+      try {
+        await registerDevice();
+      } catch {
         // registration error state is already stored locally
-      });
+      } finally {
+        if (!cancelled) setBootstrapped(true);
+      }
     })();
 
     return () => {
@@ -342,6 +355,7 @@ export function useDeviceState() {
   return {
     deviceId,
     loading,
+    bootstrapped,
     error,
     retryCount,
     notificationMode,

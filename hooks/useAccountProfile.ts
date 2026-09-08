@@ -38,6 +38,11 @@ export type AccountProfile = {
   /** Samo ukljuceni signali. */
   activeSignalCount: number;
   pricingPlans: PricingPlan[];
+  /**
+   * @deprecated Backend od 2026-09-08 uvek vraca prazan string - drugarski kod je
+   * jedinstven po korisniku i nikad se ne salje aplikaciji. Polje ostaje samo da
+   * starije verzije app-a ne puknu na odgovoru.
+   */
   freeBronzeCode: string;
   // Trial + subscription
   trialActive: boolean;

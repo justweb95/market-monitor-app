@@ -1,6 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { NeoTheme, neoShadow } from "@/constants/neo-theme";
-import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { hasDrugarskiPlan } from "@/constants/promo";
 import { rf, rs } from "@/constants/responsive";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { useDevice } from "@/contexts/DeviceContext";
@@ -149,7 +149,7 @@ export default function HomeScreen() {
   const displaySignalLimit =
     profile?.alertLimit && profile.alertLimit > 0
       ? profile.alertLimit
-      : profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE
+      : hasDrugarskiPlan(profile?.user?.promoCodeUsed)
         ? 5
         : 0;
 

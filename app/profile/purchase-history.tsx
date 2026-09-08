@@ -1,7 +1,7 @@
 import { AppHeader } from "@/components/app-header";
 import { CutCard } from "@/components/cut-card";
 import { NeoTheme } from "@/constants/neo-theme";
-import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { hasDrugarskiPlan } from "@/constants/promo";
 import {
   PAID_TIERS,
   TIER_PRODUCT_ID,
@@ -69,7 +69,7 @@ export default function PurchaseHistoryScreen() {
     profile?.user?.id,
   );
 
-  const isDrugarskiActive = profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE;
+  const isDrugarskiActive = hasDrugarskiPlan(profile?.user?.promoCodeUsed);
 
   const entries = useMemo<PurchaseEntry[]>(() => {
     const list: PurchaseEntry[] = [];
@@ -109,8 +109,9 @@ export default function PurchaseHistoryScreen() {
       });
     }
 
-    if (profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE) {
-      const purchasedLabel = formatDate(profile.user.promoRedeemedAt) ?? "-";
+    if (hasDrugarskiPlan(profile?.user?.promoCodeUsed)) {
+      const redeemedAt = profile?.user?.promoRedeemedAt ?? null;
+      const purchasedLabel = formatDate(redeemedAt) ?? "-";
       list.push({
         key: "drugarski",
         label: "Drugarski plan",
@@ -121,7 +122,7 @@ export default function PurchaseHistoryScreen() {
         priceLabel: null,
         purchasedLabel,
         expiryLabel: null,
-        sortAt: profile.user.promoRedeemedAt ? new Date(profile.user.promoRedeemedAt).getTime() : Date.now(),
+        sortAt: redeemedAt ? new Date(redeemedAt).getTime() : Date.now(),
       });
     }
 

@@ -37,7 +37,7 @@ import * as Notifications from "expo-notifications";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { PurchasesPackage } from "react-native-purchases";
 import "react-native-reanimated";
 
@@ -94,7 +94,7 @@ function RootLayoutContent() {
   // Device and profile for paywall gate
   const pathname = usePathname();
   const router = useRouter();
-  const { deviceId, loading: deviceLoading, linkAccountToDevice } = useDevice();
+  const { deviceId, bootstrapped: deviceBootstrapped, linkAccountToDevice } = useDevice();
   const {
     profile,
     initialized: profileInitialized,
@@ -134,6 +134,23 @@ function RootLayoutContent() {
     }
   }, [fontsLoaded]);
 
+  // Otkazivanje/nadogradnja pretplate se desava U GOOGLE PLAY-u, dakle van nase
+  // aplikacije. Povratak iz druge aplikacije ne okida `useFocusEffect` (ruta se nije
+  // menjala), pa je profil ostajao ustajao i ekran "Moj plan" nije prikazivao da je
+  // pretplata otkazana. Osvezavanje na povratak u prvi plan resava i to i svaku drugu
+  // promenu koja se desila dok je app bio u pozadini (webhook, istek probnog perioda).
+  useEffect(() => {
+    if (!deviceId) return;
+
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refreshProfile();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [deviceId, refreshProfile]);
+
   useEffect(() => {
     const clearHandledNotification = async (
       response: Notifications.NotificationResponse | null,
@@ -167,7 +184,12 @@ function RootLayoutContent() {
     return null;
   }
 
-  if (deviceLoading || !profileInitialized) {
+  // Ekran za ucitavanje stoji samo dok se uredjaj prvi put ne razresi i, ako uredjaj
+  // POSTOJI, dok mu se profil ne ucita. Kad uredjaja nema (prva instalacija posle
+  // neuspele registracije ili odjava), ide se pravo na AuthGate - ranije se cekalo na
+  // `profileInitialized` koji bez deviceId-a nikad ne postane true, pa je "Odjavi se"
+  // ostavljalo aplikaciju zauvek na splash ekranu.
+  if (!deviceBootstrapped || (deviceId && !profileInitialized)) {
     return (
       <View style={appLoadingStyles.container}>
         <Image
@@ -207,15 +229,33 @@ function RootLayoutContent() {
       <ThemeProvider value={appTheme}>
         <AuthGate
           onSubmit={async (account, mode) => {
-            await linkAccountToDevice(account);
-            await refreshProfile();
-            setToast({
-              kind: "success",
-              text:
-                mode === "login"
-                  ? "Uspesno si prijavljen. Dobrodosao nazad!"
-                  : "Nalog je napravljen. Dobrodosao u Lovac na Oglase!",
-            });
+            try {
+              await linkAccountToDevice(account);
+              await refreshProfile();
+              setToast({
+                kind: "success",
+                text:
+                  mode === "login"
+                    ? "Uspesno si prijavljen. Dobrodosao nazad!"
+                    : "Nalog je napravljen. Dobrodosao u Lovac na Oglase!",
+              });
+            } catch (e) {
+              // Toast pored inline poruke na samom AuthGate-u: backend vraca konkretan
+              // razlog (npr. "Nalog sa ovim emailom vec postoji. Prijavi se umesto
+              // registracije."), a on mora da se vidi i kad je tastatura otvorena i
+              // kad inline red ostane van vidljivog dela forme.
+              setToast({
+                kind: "error",
+                text:
+                  e instanceof Error && e.message
+                    ? e.message
+                    : mode === "login"
+                      ? "Prijava nije uspela. Pokusaj ponovo."
+                      : "Registracija nije uspela. Pokusaj ponovo.",
+              });
+              // Prosledjeno dalje da AuthGate prikaze i svoju inline poruku.
+              throw e;
+            }
           }}
         />
         <AppToast toast={toast} onHide={() => setToast(null)} />

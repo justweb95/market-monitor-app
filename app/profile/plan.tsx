@@ -2,7 +2,7 @@ import { AppHeader } from "@/components/app-header";
 import { CutButton } from "@/components/cut-button";
 import { confirmSubscriptionDisclosure } from "@/constants/subscription-disclosure";
 import { NeoTheme } from "@/constants/neo-theme";
-import { DRUGARSKI_PROMO_CODE } from "@/constants/promo";
+import { hasDrugarskiPlan } from "@/constants/promo";
 import {
   entitlementSignature,
   refreshEntitlementState,
@@ -15,10 +15,11 @@ import { useDevice } from "@/contexts/DeviceContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Linking,
   Pressable,
   ScrollView,
@@ -57,7 +58,7 @@ const PLANS: PlanCard[] = [
     title: "Drugarski",
     icon: "gift-outline",
     accent: "rgba(215, 242, 13, 1)",
-    description: "Drugarski plan se aktivira unosom koda.",
+    description: "Drugarski plan se aktivira kodom koji dobijes od nas.",
     alerts: 5,
     drafts: 5,
     rightLabel: "Code aktivacija",
@@ -98,7 +99,7 @@ export default function PlanScreen() {
   const router = useRouter();
   const { deviceId, loading: deviceLoading } = useDevice();
   const { profile, loading, redeemBronzeCode, cancelDrugarskiCode, refresh: refreshProfile } = useAccountProfile(deviceId);
-  const { offerings, purchasing, purchasePackage, error: purchaseError, getManagementURL } = useSubscription(profile?.user?.id);
+  const { offerings, purchasing, purchasePackage, getLastError, getManagementURL } = useSubscription(profile?.user?.id);
 
   const [code, setCode] = useState("");
   const [saving, setSaving] = useState(false);
@@ -111,6 +112,9 @@ export default function PlanScreen() {
   // Poruka posle kupovine pretplate (uspeh / "jos se aktivira").
   const [purchaseMsg, setPurchaseMsg] = useState<{ kind: "success" | "info"; text: string } | null>(null);
   const managementUrl = getManagementURL();
+  // Otisak pretplate u trenutku odlaska u Google Play. Postavljen == korisnik je otisao
+  // da otkaze/promeni pretplatu i jos se nismo vratili.
+  const pendingManagementSignatureRef = useRef<string | null>(null);
 
   // Kad se korisnik vrati na ekran (npr. dok se ceka da webhook upise novi plan
   // posle kupovine), povuci svez profil da se prikaze tacan plan.
@@ -120,8 +124,29 @@ export default function PlanScreen() {
     }, [refreshProfile]),
   );
 
+  // Otkazivanje pretplate se desava u Google Play-u, a do nas stize tek preko
+  // RevenueCat webhook-a - jedno osvezavanje u trenutku povratka je cesto prerano, pa
+  // je ekran i dalje pisao "Pretplata aktivna do ..." umesto "otkazana, aktivna do ...".
+  // Zato se posle povratka iz Play-a ceka dok se otisak pretplate stvarno ne promeni.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+
+      const previousSignature = pendingManagementSignatureRef.current;
+      if (previousSignature === null) return;
+      pendingManagementSignatureRef.current = null;
+
+      setSyncing(true);
+      void refreshEntitlementState(refreshProfile, previousSignature).finally(() => {
+        setSyncing(false);
+      });
+    });
+
+    return () => subscription.remove();
+  }, [refreshProfile]);
+
   const isDrugarskiActive = useMemo(
-    () => profile?.user?.promoCodeUsed === DRUGARSKI_PROMO_CODE,
+    () => hasDrugarskiPlan(profile?.user?.promoCodeUsed),
     [profile?.user?.promoCodeUsed],
   );
 
@@ -319,7 +344,10 @@ export default function PlanScreen() {
             {canManageSubscription ? (
               <Pressable
                 style={({ pressed }) => [styles.actionRow, styles.actionRowBorder, pressed && styles.pressed]}
-                onPress={() => Linking.openURL(managementUrl ?? PLAY_STORE_SUBSCRIPTIONS_URL)}
+                onPress={() => {
+                  pendingManagementSignatureRef.current = entitlementSignature(profile);
+                  void Linking.openURL(managementUrl ?? PLAY_STORE_SUBSCRIPTIONS_URL);
+                }}
               >
                 <Text style={[styles.actionText, styles.dangerText]}>
                   {profile?.subscription?.status === "PAUSED"
@@ -336,7 +364,7 @@ export default function PlanScreen() {
           {showChangePlan ? (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Planovi</Text>
-              <Text style={styles.planIntro}>Planovi prate landing cene i broj signala. Drugarski plan koristi unos koda.</Text>
+              <Text style={styles.planIntro}>Planovi prate landing cene i broj signala. Drugarski plan se otključava kodom koji dobijaš lično od nas.</Text>
 
               <View style={styles.planList}>
                 {PLANS.map((plan) => {
@@ -494,8 +522,15 @@ export default function PlanScreen() {
                             } finally {
                               setSyncing(false);
                             }
-                          } else if (purchaseError) {
-                            Alert.alert("Kupovina nije uspela", purchaseError);
+                          } else {
+                            // `getLastError()` se cita iz ref-a, pa je vec popunjen kad
+                            // se `purchasePackage` vrati. Ranije se ovde citala `error`
+                            // vrednost uhvacena u closure-u PRE kupovine (uvek null),
+                            // pa korisnik na odbijeno placanje nije video nikakvu poruku.
+                            const failure = getLastError();
+                            if (failure) {
+                              Alert.alert("Kupovina nije uspela", failure);
+                            }
                           }
                         }}
                       />
