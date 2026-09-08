@@ -268,9 +268,16 @@ export function useDeviceState() {
   );
 
   const invalidateDeviceRegistration = useCallback(async () => {
-    await AsyncStorage.removeItem(DEVICE_ID_KEY);
-    await AsyncStorage.removeItem(LAST_SENT_PUSH_TOKEN_KEY);
-    setDeviceId(null);
+    // Ciscenje lokalnog stanja ide u `finally`: ako AsyncStorage pukne, odjava (i
+    // brisanje naloga, koje se zavrsava istim pozivom) NE sme da ostane na pola -
+    // app bi ostao zaglavljen na splash ekranu sa uredjajem koji vise ne postoji.
+    try {
+      await AsyncStorage.removeItem(DEVICE_ID_KEY);
+      await AsyncStorage.removeItem(LAST_SENT_PUSH_TOKEN_KEY);
+    } finally {
+      setDeviceId(null);
+      setError(null);
+    }
   }, []);
 
   useEffect(() => {

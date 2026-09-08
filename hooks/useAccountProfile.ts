@@ -275,7 +275,17 @@ export function useAccountProfile(deviceId: string | null) {
         );
       }
 
-      profileStores.delete(deviceId);
+      // Kes se NE brise (`profileStores.delete`) nego se postavlja na "razreseno, nema
+      // naloga". Brisanje kljuca je bio deo uzroka zasto je ekran posle brisanja naloga
+      // ostajao zaglavljen na logotipu: sledeci `getStore(deviceId)` je pravio nov prazan
+      // zapis sa `initialized: false`, a root layout dok se profil ne "inicijalizuje"
+      // prikazuje splash. Ovako je stanje odmah konacno - nema naloga, idi na AuthGate -
+      // bez obzira na to da li ce i kada `deviceId` biti obrisan.
+      const store = getStore(deviceId);
+      store.profile = null;
+      store.error = null;
+      store.loading = false;
+      store.initialized = true;
       emit(deviceId);
     },
     [deviceId],
